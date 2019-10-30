@@ -86,22 +86,22 @@ def GenerateMeasurementOperators(mode):
         def A_handle(A_val_tf, x):
             sign_vec = A_val_tf[0:n]
             signed_x = tf.multiply(sign_vec, tf.complex(x,tf.zeros([n,BATCH_SIZE],dtype=tf.float32)))
-            signed_x = tf.reshape(signed_x, [height_img, width_img, BATCH_SIZE])
+            signed_x = tf.reshape(signed_x, [height_img, width_img, channel_img,  BATCH_SIZE])
             signed_x=tf.transpose(signed_x)#Transpose because fft2d operates upon the last two axes
             F_signed_x = tf.fft2d(signed_x)
             F_signed_x=tf.transpose(F_signed_x)
-            F_signed_x = tf.reshape(F_signed_x, [height_img * width_img, BATCH_SIZE])*1./np.sqrt(m_fp)#This is a different normalization than in Matlab because the FFT is implemented differently in Matlab
+            F_signed_x = tf.reshape(F_signed_x, [height_img * width_img * channel_img, BATCH_SIZE])*1./np.sqrt(m_fp)#This is a different normalization than in Matlab because the FFT is implemented differently in Matlab
             out = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,F_signed_x,adjoint_a=False)
             return out
 
         def At_handle(A_val_tf, z):
             sign_vec=A_val_tf[0:n]
             z_padded = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,z,adjoint_a=True)
-            z_padded = tf.reshape(z_padded, [height_img, width_img, BATCH_SIZE])
+            z_padded = tf.reshape(z_padded, [height_img, width_img, channel_img, BATCH_SIZE])
             z_padded=tf.transpose(z_padded)#Transpose because fft2d operates upon the last two axes
             Finv_z = tf.ifft2d(z_padded)
             Finv_z = tf.transpose(Finv_z)
-            Finv_z = tf.reshape(Finv_z, [height_img*width_img, BATCH_SIZE])
+            Finv_z = tf.reshape(Finv_z, [height_img*width_img*channel_img, BATCH_SIZE])
             out = tf.multiply(tf.conj(sign_vec), Finv_z)*n_fp/np.sqrt(m)
             return out
     elif mode=='Fast-JL':#Measurement matrix close to a fast JL transform. True fast JL would use hadamard transform and a sparse sampling matrix with multiple nz elements per row

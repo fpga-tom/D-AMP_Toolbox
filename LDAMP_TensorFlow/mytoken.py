@@ -1,22 +1,23 @@
 import numpy as np
 
-SEQ_LEN_H = 128
-SEQ_LEN_W = 80
+SEQ_LEN_H = 40
+SEQ_LEN_W = 39
 channel_img = 3
-im = [4000, 200, 1]
+im = [1000, 200, 1]
 
 
-with open('/tmp/dict.txt') as f:
+with open('/tomaskrajco/dict.txt') as f:
     tokens = []
     for l in f:
         tokens.append(l.lower())
 
     token_to_int = dict((t, i) for i, t in enumerate(tokens))
 
-    print('total tokens: ' + len(token_to_int))
+    print('total tokens: ' + str(len(token_to_int)))
 
 
-with open('/tmp/train.txt') as f:
+lineno = 0
+with open('/tomaskrajco/tokens.txt') as f:
     for jj in im:
         img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
         for i in range(jj):
@@ -24,16 +25,17 @@ with open('/tmp/train.txt') as f:
             for k in range(SEQ_LEN_H):
                 for l in range(0,SEQ_LEN_W,3):
                     token = f.readline().lower()
+		    lineno += 1
                     ti = token_to_int[token]
-                    data_x[k,l,0] = data_x % 2
-                    data_x[k,l,1] = (data_x // 2) % 2
-                    data_x[k,l,2] = (data_x // 4) % 2
-                    data_x[k,l+1,0] = (data_x // 8) % 2
-                    data_x[k,l+1,1] = (data_x // 16) % 2
-                    data_x[k,l+1,2] = (data_x // 32) % 2
-                    data_x[k,l+2,0] = (data_x // 64) % 2
-                    data_x[k,l+2,1] = (data_x // 128) % 2
-                    data_x[k,l+2,2] = (data_x // 256) % 2
+                    data_x[k,l,0] = ti % 2
+                    data_x[k,l,1] = (ti // 2) % 2
+                    data_x[k,l,2] = (ti // 4) % 2
+                    data_x[k,l+1,0] = (ti // 8) % 2
+                    data_x[k,l+1,1] = (ti // 16) % 2
+                    data_x[k,l+1,2] = (ti // 32) % 2
+                    data_x[k,l+2,0] = (ti // 64) % 2
+                    data_x[k,l+2,1] = (ti // 128) % 2
+                    data_x[k,l+2,2] = (ti // 256) % 2
 
             img[i,:,:,:] = data_x
         np.save('images' + str(jj) + '.npy', img.astype('float32'))
