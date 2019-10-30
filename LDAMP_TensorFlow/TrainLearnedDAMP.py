@@ -66,8 +66,8 @@ print(FLAGS)
 ## Network Parameters
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
-height_img = 40
-width_img = 39
+height_img = 1
+width_img = 39*40
 channel_img = 3 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
