@@ -4,22 +4,25 @@ __author__ = 'cmetzler&alimousavi'
 import time
 import numpy as np
 import tensorflow as tf
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import LearnedDAMP as LDAMP
 import random
 import h5py
 
+
 ## Network Parameters
 alg="DAMP"
 tie_weights=False
-height_img = 256
-width_img = 256
-channel_img = 1 # RGB -> 3, Grayscale -> 1
+height_img = 1
+width_img = 40*39
+channel_img = 3 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=10
+n_DAMP_layers=1
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -30,13 +33,13 @@ if DenoiserbyDenoiser:
 
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
-n_Test_Images = 5
-sampling_rate_test=.2#The sampling rate used for testing
-sampling_rate_train=.2#The sampling rate that was used for training
+n_Test_Images = 1
+sampling_rate_test=.4#The sampling rate used for testing
+sampling_rate_train=.4#The sampling rate that was used for training
 sigma_w=0.
 n=channel_img*height_img*width_img
 m=int(np.round(sampling_rate_test*n))
-measurement_mode='Fast-JL'#'coded-diffraction'#'gaussian'#'complex-gaussian'#
+measurement_mode='dvb'#'Fast-JL'#'coded-diffraction'#'gaussian'#'complex-gaussian'#
 
 # Parameters to to initalize weights. Won't be used if old weights are loaded
 init_mu = 0
@@ -93,7 +96,8 @@ if height_img>50:
 else:
     test_im_name = "./TrainingData/TestData_patch" + str(height_img) + ".npy"
 test_images = np.load(test_im_name)
-test_images=test_images[:,0,:,:]
+test_images=test_images[:,:,:,:]
+print(len(test_images))
 assert (len(test_images)>=n_Test_Images), "Requested too much Test data"
 
 x_test = np.transpose( np.reshape(test_images, (-1, height_img * width_img * channel_img)))
@@ -170,13 +174,15 @@ with tf.Session() as sess:
         Final_PSNRs.append(batch_PSNR_hist[-1][0])
     print(Final_PSNRs)
     print(np.mean(Final_PSNRs))
-    fig1 = plt.figure()
-    plt.imshow(np.transpose(np.reshape(x_test[:, n_Test_Images-1], (height_img, width_img))), interpolation='nearest', cmap='gray')
-    plt.show()
-    fig2 = plt.figure()
-    plt.imshow(np.transpose(np.reshape(batch_x_recon[:, 0], (height_img, width_img))), interpolation='nearest', cmap='gray')
-    plt.show()
-    fig3 = plt.figure()
-    plt.plot(range(n_DAMP_layers+1), np.mean(batch_PSNR_hist,axis=1))
-    plt.title("PSNR over " +str(alg)+" layers")
-    plt.show()
+#    fig1 = plt.figure()
+    plt.imshow((np.reshape(x_test[:, n_Test_Images-1], (height_img, width_img,channel_img ))), interpolation='nearest')
+#    plt.show()
+    plt.savefig('orig.png')
+#    fig2 = plt.figure()
+    plt.imshow((np.reshape(batch_x_recon[:, 0], (height_img, width_img, channel_img))), interpolation='nearest')
+#    plt.show()
+    plt.savefig('recon.png')
+#    fig3 = plt.figure()
+#    plt.plot(range(n_DAMP_layers+1), np.mean(batch_PSNR_hist,axis=1))
+#    plt.title("PSNR over " +str(alg)+" layers")
+#    plt.show()
