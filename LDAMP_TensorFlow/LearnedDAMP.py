@@ -139,6 +139,28 @@ def GenerateMeasurementOperators(mode):
             Finv_z = tf.reshape(Finv_z, [height_img*width_img, BATCH_SIZE])
             out = tf.multiply(sign_vec, Finv_z)*np.sqrt(n_fp/m_fp)
             return out
+    elif mode=='dvb':
+        is_complex=False
+        A_val = np.zeros([n, 1]) + 1j * np.zeros([n, 1])
+#        A_val[0:n] = np.exp(1j*2*np.pi*np.random.rand(n,1))#The random sign vector
+
+        global sparse_sampling_matrix
+        rand_col_inds=np.random.permutation(range(n))
+        rand_col_inds=rand_col_inds[0:m]
+        row_inds = range(m)
+        inds=zip(row_inds,rand_col_inds)
+        vals=tf.ones(m, dtype=tf.float32);
+        sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
+
+        A_val_tf = tf.placeholder(tf.complex64, [n, 1])
+        def A_handle(A_val_tf, x):
+            out = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,x,adjoint_a=False)
+            return out
+
+        def At_handle(A_val_tf, z):
+            sign_vec=A_val_tf[0:n]
+            out = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,z,adjoint_a=True)
+            return out
     else:
         raise ValueError('Measurement mode not recognized')
     return [A_handle, At_handle, A_val, A_val_tf]
@@ -215,6 +237,14 @@ def GenerateMeasurementMatrix(mode):
     elif mode == 'Fast-JL':
         A_val = np.zeros([n, 1])
         A_val[0:n] = np.sign(2*np.random.rand(n,1)-1)
+        rand_col_inds=np.random.permutation(range(n))
+        rand_col_inds=rand_col_inds[0:m]
+        row_inds = range(m)
+        inds=zip(row_inds,rand_col_inds)
+        vals=tf.ones(m, dtype=tf.float32);
+        sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
+    elif mode=='dvb':
+        A_val = np.zeros([n, 1]) + 1j * np.zeros([n, 1])
         rand_col_inds=np.random.permutation(range(n))
         rand_col_inds=rand_col_inds[0:m]
         row_inds = range(m)

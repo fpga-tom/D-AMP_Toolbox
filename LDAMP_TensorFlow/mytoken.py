@@ -3,7 +3,7 @@ import numpy as np
 SEQ_LEN_H = 40
 SEQ_LEN_W = 39
 channel_img = 3
-im = [1000, 200, 1]
+im = [2000, 200, 1]
 
 
 with open('/tomaskrajco/dict.txt') as f:

@@ -85,8 +85,8 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=1000#128*1600#128*3000
-n_Val_Images=100#10000#Must be less than 21504
+n_Train_Images=2000#128*1600#128*3000
+n_Val_Images=200#10000#Must be less than 21504
 BATCH_SIZE = 64
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
@@ -98,7 +98,7 @@ sampling_rate=.4
 sigma_w=1./255.#Noise std
 n=channel_img*height_img*width_img
 m=int(np.round(sampling_rate*n))
-measurement_mode='coded-diffraction'#'gaussian'#'gaussian'#'coded-diffraction'#
+measurement_mode='dvb'#'gaussian'#'gaussian'#'coded-diffraction'#
 
 # Parameters to to initalize weights. Won't be used if old weights are loaded
 init_mu = 0
