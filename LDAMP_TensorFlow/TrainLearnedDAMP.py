@@ -85,7 +85,7 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=2000#128*1600#128*3000
+n_Train_Images=8000#128*1600#128*3000
 n_Val_Images=200#10000#Must be less than 21504
 BATCH_SIZE = 64
 InitWeightsMethod=FLAGS.init_method

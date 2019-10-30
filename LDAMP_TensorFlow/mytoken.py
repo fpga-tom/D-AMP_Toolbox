@@ -11,9 +11,10 @@ with open('/tomaskrajco/dict.txt') as f:
     for l in f:
         tokens.append(l.lower())
 
-    token_to_int = dict((t, i) for i, t in enumerate(tokens))
+    token_to_int = dict((t.strip(), i) for i, t in enumerate(tokens))
 
     print('total tokens: ' + str(len(token_to_int)))
+    print(token_to_int)
 
 
 lineno = 0
@@ -24,7 +25,7 @@ with open('/tomaskrajco/tokens.txt') as f:
             data_x = np.zeros([SEQ_LEN_H, SEQ_LEN_W, channel_img])
             for k in range(SEQ_LEN_H):
                 for l in range(0,SEQ_LEN_W,3):
-                    token = f.readline().lower()
+                    token = f.readline().lower().strip()
 		    lineno += 1
                     ti = token_to_int[token]
                     data_x[k,l,0] = ti % 2
