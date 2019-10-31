@@ -85,7 +85,7 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=1000#128*1600#128*3000
+n_Train_Images=8000#128*1600#128*3000
 n_Val_Images=200#10000#Must be less than 21504
 BATCH_SIZE = 32
 InitWeightsMethod=FLAGS.init_method
@@ -94,7 +94,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.8
+sampling_rate=.5
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
