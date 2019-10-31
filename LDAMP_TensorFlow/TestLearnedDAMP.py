@@ -15,8 +15,8 @@ import h5py
 ## Network Parameters
 alg="DAMP"
 tie_weights=False
-height_img = 1
-width_img = 40*39
+height_img = 40
+width_img = 39
 channel_img = 3 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
@@ -34,10 +34,10 @@ if DenoiserbyDenoiser:
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
-sampling_rate_test=.4#The sampling rate used for testing
+sampling_rate_test=.8#The sampling rate used for testing
 sampling_rate_train=.4#The sampling rate that was used for training
 sigma_w=0.
-n=channel_img*height_img*width_img
+n=height_img*width_img
 m=int(np.round(sampling_rate_test*n))
 measurement_mode='dvb'#'Fast-JL'#'coded-diffraction'#'gaussian'#'complex-gaussian'#
 
@@ -55,7 +55,7 @@ LDAMP.SetNetworkParams(new_height_img=height_img, new_width_img=width_img, new_c
 LDAMP.ListNetworkParameters()
 
 # tf Graph input
-x_true = tf.placeholder(tf.float32, [n, BATCH_SIZE])
+x_true = tf.placeholder(tf.float32, [BATCH_SIZE, n, channel_img])
 
 #Create handles for the measurement operator
 [A_handle, At_handle, A_val, A_val_tf]=LDAMP.GenerateMeasurementOperators(measurement_mode)
@@ -100,7 +100,7 @@ test_images=test_images[:,:,:,:]
 print(len(test_images))
 assert (len(test_images)>=n_Test_Images), "Requested too much Test data"
 
-x_test = np.transpose( np.reshape(test_images, (-1, height_img * width_img * channel_img)))
+x_test = ( np.reshape(test_images, (-1, height_img * width_img , channel_img)))
 
 # with tf.Session() as sess:
 #     y_test=sess.run(y_measured,feed_dict={x_true: x_test, A_val_tf: A_val})#All the batches will use the same measurement matrix
@@ -167,7 +167,7 @@ with tf.Session() as sess:
         # Generate a new measurement matrix
         A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
 
-        batch_x_test = x_test[:, offset:end]
+        batch_x_test = x_test[offset:end, :]
 
         # Run optimization. This will both generate compressive measurements and then recontruct from them.
         batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist = sess.run([x_hat, MSE_history, NMSE_history, PSNR_history], feed_dict={x_true: batch_x_test, A_val_tf: A_val})
@@ -175,11 +175,11 @@ with tf.Session() as sess:
     print(Final_PSNRs)
     print(np.mean(Final_PSNRs))
 #    fig1 = plt.figure()
-    plt.imshow((np.reshape(x_test[:, n_Test_Images-1], (height_img, width_img,channel_img ))), interpolation='nearest')
+    plt.imshow((np.reshape(x_test[n_Test_Images-1, :], (height_img, width_img,channel_img ))), interpolation='nearest')
 #    plt.show()
     plt.savefig('orig.png')
 #    fig2 = plt.figure()
-    plt.imshow((np.reshape(batch_x_recon[:, 0], (height_img, width_img, channel_img))), interpolation='nearest')
+    plt.imshow((np.reshape(batch_x_recon[0, :], (height_img, width_img, channel_img))), interpolation='nearest')
 #    plt.show()
     plt.savefig('recon.png')
 #    fig3 = plt.figure()

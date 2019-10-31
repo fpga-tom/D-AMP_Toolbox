@@ -141,7 +141,7 @@ def GenerateMeasurementOperators(mode):
             return out
     elif mode=='dvb':
         is_complex=False
-        A_val = np.zeros([n, 1]) + 1j * np.zeros([n, 1])
+        A_val = np.zeros([1,n,channel_img]) + 1j * np.zeros([n, 1])
 #        A_val[0:n] = np.exp(1j*2*np.pi*np.random.rand(n,1))#The random sign vector
 
         global sparse_sampling_matrix
@@ -152,14 +152,32 @@ def GenerateMeasurementOperators(mode):
         vals=tf.ones(m, dtype=tf.float32);
         sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
 
-        A_val_tf = tf.placeholder(tf.complex64, [n, 1])
+        A_val_tf = tf.placeholder(tf.complex64, [1, n,channel_img])
         def A_handle(A_val_tf, x):
-            out = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,x,adjoint_a=False)
+            print(x)
+	    r, g, b = tf.unstack(x, axis=2)
+	    print(r)
+#            out = tf.stack(( \
+#		tf.scan(lambda _,_r : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_r,adjoint_a=False), r), \
+#		tf.scan(lambda _,_g : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_g,adjoint_a=False), g), \
+#		tf.scan(lambda _,_b : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_b,adjoint_a=False), b)), axis=2)
+            out = tf.stack(( \
+		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=False)), \
+		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=False)), \
+		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=False))), axis=2)
+            print(out)
             return out
 
         def At_handle(A_val_tf, z):
-            sign_vec=A_val_tf[0:n]
-            out = tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,z,adjoint_a=True)
+	    r, g, b = tf.unstack(z, axis=2)
+#            out = tf.stack(( \
+#			tf.scan(lambda _, _r : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_r,adjoint_a=True), r), \
+#			tf.scan(lambda _, _g : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_g,adjoint_a=True), g), \
+#			tf.scan(lambda _, _b : tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,_b,adjoint_a=True), b)), axis=2)
+            out = tf.stack(( \
+			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=True)), \
+			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=True)), \
+			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=True))), axis=2)
             return out
     else:
         raise ValueError('Measurement mode not recognized')
@@ -244,7 +262,7 @@ def GenerateMeasurementMatrix(mode):
         vals=tf.ones(m, dtype=tf.float32);
         sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
     elif mode=='dvb':
-        A_val = np.zeros([n, 1]) + 1j * np.zeros([n, 1])
+        A_val = np.zeros([1,n, channel_img])
         rand_col_inds=np.random.permutation(range(n))
         rand_col_inds=rand_col_inds[0:m]
         row_inds = range(m)
@@ -258,7 +276,7 @@ def GenerateMeasurementMatrix(mode):
 #Learned DAMP
 def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLayer=True):
     z = y
-    xhat = tf.zeros([n, BATCH_SIZE], dtype=tf.float32)
+    xhat = tf.zeros([BATCH_SIZE, n,channel_img], dtype=tf.float32)
     MSE_history=[]#Will be a list of n_DAMP_layers+1 lists, each sublist will be of size BATCH_SIZE
     NMSE_history=[]
     PSNR_history=[]
@@ -268,7 +286,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
     PSNR_history.append(PSNR_thisiter)
     for iter in range(n_DAMP_layers):
         if is_complex:
-            r = tf.complex(xhat,tf.zeros([n,BATCH_SIZE],dtype=tf.float32)) + At_handle(A_val,z)
+            r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=0))#In the latest version of TF, abs can handle complex values
         else:
             r = xhat + At_handle(A_val,z)
@@ -277,7 +295,13 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
         else:
-            z = y - A_handle(A_val, xhat) + n_fp / m_fp * dxdr * z
+	    print(z)
+	    print(y)
+	    print(n_fp)
+	    print(m_fp)
+            print(dxdr)
+            print(xhat)
+            z = y - A_handle(A_val, xhat) + n_fp / m_fp #* dxdr * z
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
@@ -309,7 +333,7 @@ def LDAMP_Aty(Aty,A_handle,At_handle,A_val,theta,x_true,tie,training=False,Layer
             # z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
             Atz = Aty - At_handle(A_val, A_handle(A_val, xhat)) + n_fp / m_fp * tf.complex(dxdr,0.) * Atz
         else:
-            # z = y - A_handle(A_val, xhat) + n_fp / m_fp * dxdr * z
+            z = y - A_handle(A_val, xhat) + n_fp / m_fp * dxdr * z
             Atz = Aty - At_handle(A_val, A_handle(A_val, xhat)) +  n_fp / m_fp * dxdr * Atz
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
@@ -547,11 +571,12 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     """
     xhat=DnCNN(r,rvar,theta_thislayer,training=training)
     r_abs = tf.abs(r, name=None)
-    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=0),.00001)
+    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[0,1]),.00001)
     eta=tf.random_normal(shape=r.get_shape(),dtype=tf.float32)
     if is_complex:
         r_perturbed = r + tf.complex(tf.multiply(eta, epsilon),tf.zeros([n,BATCH_SIZE],dtype=tf.float32))
     else:
+	print(r)
         r_perturbed = r + tf.multiply(eta, epsilon)
     xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
@@ -571,7 +596,9 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
 
     if is_complex:
         r=tf.real(r)
-    r=tf.transpose(r)
+    print('rr',r)
+#    r=tf.transpose(r)
+    print('rt',r)
     orig_Shape = tf.shape(r)
     shape4D = [-1, height_img, width_img, channel_img]
     r = tf.reshape(r, shape4D)  # reshaping input
@@ -581,7 +608,7 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     # Conv + Relu
     with tf.variable_scope("l0"):
         conv_out = tf.nn.conv2d(r, weights[0], strides=[1, 1, 1, 1], padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
-        layers[0] = tf.nn.relu(conv_out)
+        layers[0] = tf.nn.leaky_relu(conv_out)
 
     #############  2nd to 2nd to Last Layer ###############
     # Conv + BN + Relu
@@ -589,7 +616,7 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
         with tf.variable_scope("l" + str(i)):
             conv_out  = tf.nn.conv2d(layers[i-1], weights[i], strides=[1, 1, 1, 1], padding='SAME') #+ biases[i]
             batch_out = tf.layers.batch_normalization(inputs=conv_out, training=training, name='BN', reuse=tf.AUTO_REUSE)
-            layers[i] = tf.nn.relu(batch_out)
+            layers[i] = tf.nn.leaky_relu(batch_out)
 
     #############  Last Layer ###############
     # Conv
@@ -597,13 +624,14 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
         layers[n_DnCNN_layers-1]  = tf.nn.conv2d(layers[n_DnCNN_layers-2], weights[n_DnCNN_layers-1], strides=[1, 1, 1, 1], padding='SAME')
 
     x_hat = r-layers[n_DnCNN_layers-1]
-    x_hat = tf.transpose(tf.reshape(x_hat,orig_Shape))
+#    x_hat = tf.transpose(tf.reshape(x_hat,orig_Shape))
+    x_hat = (tf.reshape(x_hat,orig_Shape))
     return x_hat
 
 ## Create training data from images, with tf and function handles
 def GenerateNoisyCSData_handles(x,A_handle,sigma_w,A_params):
     y = A_handle(A_params,x)
-    y = AddNoise(y,sigma_w)
+#    y = AddNoise(y,sigma_w)
     return y
 
 ## Create training data from images, with tf

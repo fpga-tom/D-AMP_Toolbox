@@ -66,8 +66,8 @@ print(FLAGS)
 ## Network Parameters
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
-height_img = 1
-width_img = 39*40
+height_img = 40
+width_img = 39
 channel_img = 3 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
@@ -85,18 +85,18 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=8000#128*1600#128*3000
+n_Train_Images=1000#128*1600#128*3000
 n_Val_Images=200#10000#Must be less than 21504
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.4
-sigma_w=1./255.#Noise std
-n=channel_img*height_img*width_img
+sampling_rate=.8
+sigma_w=0#1./255.#Noise std
+n=height_img*width_img
 m=int(np.round(sampling_rate*n))
 measurement_mode='dvb'#'gaussian'#'gaussian'#'coded-diffraction'#
 
@@ -118,7 +118,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
     # tf Graph input
     training_tf = tf.placeholder(tf.bool, name='training')
-    x_true = tf.placeholder(tf.float32, [n, BATCH_SIZE])
+    x_true = tf.placeholder(tf.float32, [BATCH_SIZE, n, channel_img], name="x_true")
 
     ## Initialize the variable theta which stores the weights and biases
     if tie_weights == True:
@@ -208,8 +208,10 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
     val_images=val_images[:,:,:,:]
     assert (len(val_images)>=n_Val_Images), "Requested too much validation data"
 
-    x_train = np.transpose(np.reshape(train_images, (-1, channel_img * height_img * width_img)))
-    x_val = np.transpose(np.reshape(val_images, (-1, channel_img * height_img * width_img)))
+#    x_train = np.transpose(np.reshape(train_images, (-1, height_img * width_img, channel_img)))
+    x_train = (np.reshape(train_images, (-1, height_img * width_img, channel_img)))
+    #x_val = np.transpose(np.reshape(val_images, (-1, height_img * width_img, channel_img)))
+    x_val = (np.reshape(val_images, (-1, height_img * width_img, channel_img)))
 
     ## Train the Model
     for learning_rate in learning_rates:
@@ -367,7 +369,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
                     # Generate a new measurement matrix
                     A_val=LDAMP.GenerateMeasurementMatrix(measurement_mode)
-                    batch_x_val = x_val[:, rand_inds[offset:end]]
+                    batch_x_val = x_val[rand_inds[offset:end],:]
 
                     # Run optimization. This will both generate compressive measurements and then recontruct from them.
                     loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val_tf:A_val, training_tf:False})
@@ -395,7 +397,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
                         # Generate a new measurement matrix
                         A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
-                        batch_x_train = x_train[:, rand_inds[offset:end]]
+                        batch_x_train = x_train[rand_inds[offset:end],:]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
                         _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val_tf:A_val, training_tf:True})#Feed dict names should match with the placeholders
@@ -412,7 +414,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
                         # Generate a new measurement matrix
                         A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
-                        batch_x_val = x_val[:, rand_inds[offset:end]]
+                        batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
                         loss_val, psnr_batch = sess.run([cost, PSNR_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False})

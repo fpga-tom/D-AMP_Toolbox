@@ -1,7 +1,7 @@
 import numpy as np
 
-SEQ_LEN_H = 1
-SEQ_LEN_W = 39*40
+SEQ_LEN_H = 40
+SEQ_LEN_W = 39
 channel_img = 3
 im = [8000, 200, 1]
 
