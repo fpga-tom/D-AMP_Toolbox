@@ -34,8 +34,8 @@ if DenoiserbyDenoiser:
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
-sampling_rate_test=.5#The sampling rate used for testing
-sampling_rate_train=.5#The sampling rate that was used for training
+sampling_rate_test=.7#The sampling rate used for testing
+sampling_rate_train=.7#The sampling rate that was used for training
 sigma_w=0.
 n=height_img*width_img
 m=int(np.round(sampling_rate_test*n))
