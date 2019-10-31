@@ -301,7 +301,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
 	    print(m_fp)
             print(dxdr)
             print(xhat)
-            z = y - A_handle(A_val, xhat) + n_fp / m_fp #* dxdr * z
+            z = y - A_handle(A_val, xhat) + n_fp / m_fp * dxdr #* z
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
