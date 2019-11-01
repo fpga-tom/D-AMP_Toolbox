@@ -8,6 +8,7 @@ import LearnedDAMP as LDAMP
 from tensorflow.python import debug as tf_debug
 from matplotlib import pyplot as plt
 import h5py
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -85,7 +86,7 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=8000#128*1600#128*3000
+n_Train_Images=32000#128*1600#128*3000
 n_Val_Images=200#10000#Must be less than 21504
 BATCH_SIZE = 32
 InitWeightsMethod=FLAGS.init_method
@@ -94,7 +95,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.7
+sampling_rate=.8
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
@@ -392,16 +393,19 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     print ("This Training iteration ...")
                     rand_inds=np.random.choice(len(train_images), n_Train_Images,replace=False)
                     start_time = time.time()
+		    pbar = tqdm(total=n_Train_Images - BATCH_SIZE + 1)
                     for offset in range(0, n_Train_Images-BATCH_SIZE+1, BATCH_SIZE):#Subtract batch size-1 to avoid errors when len(train_images) is not a multiple of the batch size
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-                        A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+#                        A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_train = x_train[rand_inds[offset:end],:]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
                         _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val_tf:A_val, training_tf:True})#Feed dict names should match with the placeholders
                         train_values.append(loss_val)
+			pbar.update(BATCH_SIZE)
+		    pbar.close()
                     time_taken = time.time() - start_time
                     print np.mean(train_values)
                     val_values = []
@@ -413,7 +417,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-                        A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                        #A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.

@@ -287,21 +287,21 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
     for iter in range(n_DAMP_layers):
         if is_complex:
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
-            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=0))#In the latest version of TF, abs can handle complex values
+            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
             r = xhat + At_handle(A_val,z)
-            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=0))
+            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))
         (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=training,LayerbyLayer=LayerbyLayer)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
         else:
-	    print(z)
+	    print('z',z)
+            print('dxdr',dxdr)
 	    print(y)
 	    print(n_fp)
 	    print(m_fp)
-            print(dxdr)
             print(xhat)
-            z = y - A_handle(A_val, xhat) #+ n_fp / m_fp * dxdr #* z
+            z = y - A_handle(A_val, xhat) + tf.transpose(n_fp / m_fp * dxdr * tf.transpose(z))
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
@@ -443,8 +443,8 @@ def init_vars_DnCNN(init_mu,init_sigma):
 
 ## Evaluate Intermediate Error
 def EvalError(x_hat,x_true):
-    mse=tf.reduce_mean(tf.square(x_hat-x_true),axis=0)
-    xnorm2=tf.reduce_mean(tf.square( x_true),axis=0)
+    mse=tf.reduce_mean(tf.square(x_hat-x_true),axis=[1,2])
+    xnorm2=tf.reduce_mean(tf.square( x_true),axis=[1,2])
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
@@ -571,16 +571,18 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     """
     xhat=DnCNN(r,rvar,theta_thislayer,training=training)
     r_abs = tf.abs(r, name=None)
-    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[0,1]),.00001)
+    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1,2]),.00001)
+    print('epsilon',epsilon)
     eta=tf.random_normal(shape=r.get_shape(),dtype=tf.float32)
     if is_complex:
         r_perturbed = r + tf.complex(tf.multiply(eta, epsilon),tf.zeros([n,BATCH_SIZE],dtype=tf.float32))
     else:
 	print(r)
-        r_perturbed = r + tf.multiply(eta, epsilon)
+        r_perturbed = r + tf.transpose(tf.multiply(tf.transpose(eta), epsilon))
     xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
-    mean_eta_dx=tf.reduce_mean(eta_dx,axis=0)
+    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1,2])
+    print(mean_eta_dx)
     dxdrMC=tf.divide(mean_eta_dx,epsilon)
     if not LayerbyLayer:
         dxdrMC=tf.stop_gradient(dxdrMC)#When training long networks end-to-end propagating wrt the MC estimates caused divergence
@@ -679,6 +681,7 @@ def GenLDAMPFilename(alg,tie_weights,LayerbyLayer,n_DAMP_layer_override=None,sam
         filename = "./saved_models/LDAMP/GSURE_"+alg+"_" + str(n_DnCNN_layers) + "DnCNNL_" + str(int(n_DAMP_layers_save)) + "DAMPL_Tie"+str(tie_weights)+"_LbyL"+str(LayerbyLayer)+"_SR" +str(int(sampling_rate_save*100))
     else:
         filename = "./saved_models/LDAMP/"+alg+"_" + str(n_DnCNN_layers) + "DnCNNL_" + str(int(n_DAMP_layers_save)) + "DAMPL_Tie"+str(tie_weights)+"_LbyL"+str(LayerbyLayer)+"_SR" +str(int(sampling_rate_save*100))
+    print(filename)
     return filename
 
 ##Create a string that generates filenames. Ensures consitency between functions

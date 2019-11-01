@@ -3,10 +3,10 @@ import numpy as np
 SEQ_LEN_H = 40
 SEQ_LEN_W = 39
 channel_img = 3
-im = [8000, 200, 1]
+im = [32000, 200, 1]
 
 
-with open('/tomaskrajco/dict.txt') as f:
+with open('/tomas/dict.txt') as f:
     tokens = []
     for l in f:
         tokens.append(l.lower())
@@ -18,7 +18,7 @@ with open('/tomaskrajco/dict.txt') as f:
 
 
 lineno = 0
-with open('/tomaskrajco/tokens.txt') as f:
+with open('/tomas/tokens.txt') as f:
     for jj in im:
         img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
         for i in range(jj):
