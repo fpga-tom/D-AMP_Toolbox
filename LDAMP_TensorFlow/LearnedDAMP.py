@@ -435,7 +435,7 @@ def init_vars_DnCNN(init_mu,init_sigma):
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
         # Last Layer: filter_height x filter_width conv, num_filters inputs, 1 outputs
         weights[n_DnCNN_layers - 1] = tf.Variable(
-            tf.truncated_normal(shape=(filter_height, filter_width, num_filters, 1), mean=init_mu,
+            tf.truncated_normal(shape=(filter_height, filter_width, num_filters, channel_img), mean=init_mu,
                                 stddev=init_sigma), dtype=tf.float32,
             name="w")  # The intermediate convolutional layers act on num_filters_inputs, not just channel_img inputs.
         #biases[n_DnCNN_layers - 1] = tf.Variable(tf.zeros(1), dtype=tf.float32, name="b")
@@ -605,12 +605,14 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     shape4D = [-1, height_img, width_img, channel_img]
     r = tf.reshape(r, shape4D)  # reshaping input
     layers = [None] * n_DnCNN_layers
+    print('r', r)
 
     #############  First Layer ###############
     # Conv + Relu
     with tf.variable_scope("l0"):
         conv_out = tf.nn.conv2d(r, weights[0], strides=[1, 1, 1, 1], padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
-        layers[0] = tf.nn.leaky_relu(conv_out)
+        layers[0] = tf.nn.relu(conv_out)
+	print('layers[0]', layers[0])
 
     #############  2nd to 2nd to Last Layer ###############
     # Conv + BN + Relu
@@ -625,7 +627,9 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
         layers[n_DnCNN_layers-1]  = tf.nn.conv2d(layers[n_DnCNN_layers-2], weights[n_DnCNN_layers-1], strides=[1, 1, 1, 1], padding='SAME')
 
+    print('cnn', layers[n_DnCNN_layers - 1])
     x_hat = r-layers[n_DnCNN_layers-1]
+    print('xhat', x_hat)
 #    x_hat = tf.transpose(tf.reshape(x_hat,orig_Shape))
     x_hat = (tf.reshape(x_hat,orig_Shape))
     return x_hat
