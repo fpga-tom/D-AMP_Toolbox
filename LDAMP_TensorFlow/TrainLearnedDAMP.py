@@ -67,9 +67,9 @@ print(FLAGS)
 ## Network Parameters
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
-height_img = 40
-width_img = 39
-channel_img = 3 # RGB -> 3, Grayscale -> 1
+height_img = 45
+width_img = 45
+channel_img = 8 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
@@ -84,7 +84,7 @@ LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the networ
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-learning_rates = [0.001, 0.0001]#, 0.00001]
+learning_rates = [0.001, 0.0001, 0.00001]
 EPOCHS = 50
 n_Train_Images=32000#128*1600#128*3000
 n_Val_Images=200#10000#Must be less than 21504
@@ -95,7 +95,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.8
+sampling_rate=.5
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
@@ -138,7 +138,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
     ## Construct the reconstruction model
     if alg=='DAMP':
-        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
+        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN, HD_history) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     elif alg=='DIT':
         (x_hat, MSE_history, NMSE_history, PSNR_history) = LDAMP.LDIT(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     else:
@@ -410,6 +410,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     print np.mean(train_values)
                     val_values = []
 		    psnr_values = []
+		    hd_values = []
                     print("EPOCH ",i+1," Validation Value:" )
                     rand_inds = np.random.choice(len(val_images), n_Val_Images, replace=False)
                     start_time = time.time()
@@ -421,11 +422,12 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        loss_val, psnr_batch = sess.run([cost, PSNR_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False})
+                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False})
                         val_values.append(loss_val)
 		        psnr_values.append(psnr_batch[-1])
+			hd_values.append(hd_batch[-1])
                     time_taken = time.time() - start_time
-                    print np.mean(val_values), np.mean(psnr_values)
+                    print np.mean(val_values), np.mean(psnr_values), np.mean(hd_values)
                     if(np.mean(val_values) < best_val_error):
                         failed_epochs=0
                         best_val_error = np.mean(val_values)
