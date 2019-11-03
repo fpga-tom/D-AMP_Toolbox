@@ -17,12 +17,12 @@ alg="DAMP"
 tie_weights=False
 height_img = 45
 width_img = 45
-channel_img = 8 # RGB -> 3, Grayscale -> 1
+channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=3
+n_DAMP_layers=1
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)

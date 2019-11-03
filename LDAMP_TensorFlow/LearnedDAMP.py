@@ -155,33 +155,34 @@ def GenerateMeasurementOperators(mode):
         A_val_tf = tf.placeholder(tf.complex64, [1, n,channel_img])
         def A_handle(A_val_tf, x):
             print(x)
-	    r, g, b, a, l, c, d, e = tf.unstack(x, axis=2)
-	    print(r)
-            out = tf.stack(( \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(a),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(l),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(c),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(d),adjoint_a=False)), \
-		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(e),adjoint_a=False)), \
-		), axis=2)
+	    out = tf.stack([tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix, tf.transpose(r), adjoint_a=False)) for r in tf.unstack(x, axis=2)], axis=2)
+	    #r, g, b, a, l, c, d, e = tf.unstack(x, axis=2)
+#            out = tf.stack(( \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(a),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(l),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(c),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(d),adjoint_a=False)), \
+#		tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(e),adjoint_a=False)), \
+#		), axis=2)
             print(out)
             return out
 
         def At_handle(A_val_tf, z):
-	    r, g, b, a, l, c, d, e = tf.unstack(z, axis=2)
-            out = tf.stack(( \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(a),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(l),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(c),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(d),adjoint_a=True)), \
-			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(e),adjoint_a=True)), \
-		), axis=2)
+	    out = tf.stack([tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix, tf.transpose(r), adjoint_a=True)) for r in tf.unstack(z, axis=2)], axis=2)
+#	    r, g, b, a, l, c, d, e = tf.unstack(z, axis=2)
+#            out = tf.stack(( \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(r),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(g),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(b),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(a),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(l),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(c),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(d),adjoint_a=True)), \
+#			tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix,tf.transpose(e),adjoint_a=True)), \
+#		), axis=2)
             return out
     else:
         raise ValueError('Measurement mode not recognized')
@@ -307,18 +308,19 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
 	    print('n_fp', n_fp)
 	    print('m_fp', m_fp)
             print('xhat',xhat)
-	    dxdr_r, dxdr_g, dxdr_b, dxdr_a, dxdr_l, dxdr_c, dxdr_d, dxdr_e = tf.unstack(dxdr,axis=1)
-	    z_r, z_g, z_b, z_a, z_l, z_c, z_d, z_e = tf.unstack(z, axis=2)
-	    dxdr_z = tf.stack(( dxdr_r * tf.transpose(z_r), \
-				 dxdr_g * tf.transpose(z_g), \
-				 dxdr_b * tf.transpose(z_b), \
-				 dxdr_a * tf.transpose(z_a), \
-				 dxdr_l * tf.transpose(z_l), \
-				 dxdr_c * tf.transpose(z_c), \
-				 dxdr_d * tf.transpose(z_d), \
-				 dxdr_e * tf.transpose(z_e), \
-				), axis=0)
-	    print('dxdr_z',dxdr_z)
+#	    dxdr_r, dxdr_g, dxdr_b, dxdr_a, dxdr_l, dxdr_c, dxdr_d, dxdr_e = tf.unstack(dxdr,axis=1)
+#	    z_r, z_g, z_b, z_a, z_l, z_c, z_d, z_e = tf.unstack(z, axis=2)
+#	    dxdr_z = tf.stack(( dxdr_r * tf.transpose(z_r), \
+#				 dxdr_g * tf.transpose(z_g), \
+#				 dxdr_b * tf.transpose(z_b), \
+#				 dxdr_a * tf.transpose(z_a), \
+#				 dxdr_l * tf.transpose(z_l), \
+#				 dxdr_c * tf.transpose(z_c), \
+#				 dxdr_d * tf.transpose(z_d), \
+#				 dxdr_e * tf.transpose(z_e), \
+#				), axis=0)
+#	    print('dxdr_z',dxdr_z)
+	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
             z = y - A_handle(A_val, xhat) + tf.transpose(n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
@@ -467,7 +469,7 @@ def EvalError(x_hat,x_true):
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
-    hd = 1-tf.reduce_sum(tf.abs(tf.sign(x_hat) - tf.sign(x_true)))/((np.abs(np.sign(1)-np.sign(-1)))*BATCH_SIZE*n*channel_img)
+    hd = 1-tf.reduce_sum(tf.abs(tf.sign(x_hat*2 - 1) - tf.sign(x_true*2 - 1)))/((np.abs(np.sign(1)-np.sign(-1)))*BATCH_SIZE*n*channel_img)
     return mse_thisiter, nmse_thisiter, psnr_thisiter,hd
 
 ## Evaluate Intermediate Error
@@ -599,20 +601,21 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     else:
 	print(r)
 	print('eta', eta)
-	eta_r, eta_g, eta_b, eta_a, eta_l, eta_c, eta_d, eta_e = tf.unstack(eta, axis=2)
-	epsilon_r, epsilon_g, epsilon_b, epsilon_a, epsilon_l, epsilon_c, epsilon_d, epsilon_e = tf.unstack(epsilon, axis=1)
-	print('eta_r', eta_r)
-	print('epsilon_r', epsilon_r)
-	m = tf.stack(( \
-	tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_g), epsilon_g)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_b), epsilon_b)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_a), epsilon_a)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_l), epsilon_l)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_c), epsilon_c)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_d), epsilon_d)), \
-	tf.transpose(tf.multiply(tf.transpose(eta_e), epsilon_e)), \
-	), axis=2)
+#	eta_r, eta_g, eta_b, eta_a, eta_l, eta_c, eta_d, eta_e = tf.unstack(eta, axis=2)
+#	epsilon_r, epsilon_g, epsilon_b, epsilon_a, epsilon_l, epsilon_c, epsilon_d, epsilon_e = tf.unstack(epsilon, axis=1)
+#	print('eta_r', eta_r)
+#	print('epsilon_r', epsilon_r)
+#	m = tf.stack(( \
+#	tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_g), epsilon_g)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_b), epsilon_b)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_a), epsilon_a)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_l), epsilon_l)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_c), epsilon_c)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_d), epsilon_d)), \
+#	tf.transpose(tf.multiply(tf.transpose(eta_e), epsilon_e)), \
+#	), axis=2)
+	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
         print('m', m)
         r_perturbed = r + m
         print('r_perturbed', r_perturbed)
