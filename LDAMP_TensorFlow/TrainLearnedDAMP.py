@@ -84,7 +84,7 @@ LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the networ
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-learning_rates = [0.001, 0.0001, 0.00001]
+learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
 n_Train_Images=8000#128*1600#128*3000
 n_Val_Images=400#10000#Must be less than 21504
@@ -95,7 +95,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.5
+sampling_rate=.6
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))

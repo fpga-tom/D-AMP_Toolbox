@@ -270,7 +270,7 @@ def GenerateMeasurementMatrix(mode):
     elif mode=='dvb':
         A_val = np.zeros([1,n, channel_img])
         rand_col_inds=np.random.permutation(range(n))
-        rand_col_inds=rand_col_inds[0:m]
+        rand_col_inds=sorted(rand_col_inds[0:m])
         row_inds = range(m)
         idd=zip(row_inds,rand_col_inds)
         #vals=tf.ones(m, dtype=tf.float32);
@@ -298,7 +298,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
             r = xhat + At_handle(A_val,z)
-            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
+            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))
         (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=training,LayerbyLayer=LayerbyLayer)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
@@ -470,7 +470,7 @@ def EvalError(x_hat,x_true):
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
-    hd = 1-tf.reduce_sum(tf.abs(tf.sign(x_hat*2 - 1) - tf.sign(x_true*2 - 1)))/((np.abs(np.sign(1)-np.sign(-1)))*BATCH_SIZE*n*channel_img)
+    hd = 1-tf.reduce_sum(tf.abs(tf.sign(x_hat) - tf.sign(x_true)))/((np.abs(np.sign(1)-np.sign(-1)))*BATCH_SIZE*n*channel_img)
     return mse_thisiter, nmse_thisiter, psnr_thisiter,hd
 
 ## Evaluate Intermediate Error

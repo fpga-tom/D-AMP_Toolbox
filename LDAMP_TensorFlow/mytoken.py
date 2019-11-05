@@ -20,7 +20,7 @@ im = [8000, 400, 1]
 
 
 def clip(x):
-	return ((-1 if x == 0 else 1) + 1)/2.
+	return (-1 if x == 0 else 1)
 
 lineno = 0
 int_to_token = dict()
