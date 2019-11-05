@@ -150,9 +150,10 @@ def GenerateMeasurementOperators(mode):
         row_inds = range(m)
         inds=zip(row_inds,rand_col_inds)
         vals=tf.ones(m, dtype=tf.float32);
-        sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
 
         A_val_tf = tf.placeholder(tf.complex64, [1, n,channel_img])
+	Idx = tf.placeholder(tf.int64, [m, 2])
+        sparse_sampling_matrix = tf.SparseTensor(indices=Idx, values=vals, dense_shape=[m,n])
         def A_handle(A_val_tf, x):
             print(x)
 	    out = tf.stack([tf.transpose(tf.sparse_tensor_dense_matmul(sparse_sampling_matrix, tf.transpose(r), adjoint_a=False)) for r in tf.unstack(x, axis=2)], axis=2)
@@ -186,7 +187,7 @@ def GenerateMeasurementOperators(mode):
             return out
     else:
         raise ValueError('Measurement mode not recognized')
-    return [A_handle, At_handle, A_val, A_val_tf]
+    return [A_handle, At_handle, A_val, A_val_tf, Idx]
 def mydct(x,type=2,norm='ortho'):
     assert type==2 and norm=='ortho', 'Currently only type-II orthonormalized DCTs are supported'
     assert BATCH_SIZE == 1, 'Fast-JL measurement matrices currently only support batch sizes of one'
@@ -271,12 +272,12 @@ def GenerateMeasurementMatrix(mode):
         rand_col_inds=np.random.permutation(range(n))
         rand_col_inds=rand_col_inds[0:m]
         row_inds = range(m)
-        inds=zip(row_inds,rand_col_inds)
-        vals=tf.ones(m, dtype=tf.float32);
-        sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
+        idd=zip(row_inds,rand_col_inds)
+        #vals=tf.ones(m, dtype=tf.float32);
+        #sparse_sampling_matrix = tf.SparseTensor(indices=inds, values=vals, dense_shape=[m,n])
     else:
         raise ValueError('Measurement mode not recognized')
-    return A_val
+    return A_val, idd
 
 #Learned DAMP
 def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLayer=True):

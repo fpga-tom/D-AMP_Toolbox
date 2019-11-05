@@ -1,10 +1,11 @@
 import numpy as np
 import xxhash
+import pickle
 
 SEQ_LEN_H = 45
 SEQ_LEN_W = 45
 channel_img = 32
-im = [2000, 1000, 1]
+im = [8000, 400, 1]
 
 
 #with open('/tomas/dict.txt') as f:
@@ -22,6 +23,7 @@ def clip(x):
 	return ((-1 if x == 0 else 1) + 1)/2.
 
 lineno = 0
+int_to_token = dict()
 with open('/tomas/tokens.txt') as f:
     for jj in im:
         img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
@@ -34,6 +36,7 @@ with open('/tomas/tokens.txt') as f:
 		    x = xxhash.xxh32()
 		    x.update(token)
 		    ti = x.intdigest()
+		    int_to_token[ti] = token
 		    data_x[k,l,:] = [clip((ti // 2**ci) % 2) for ci in range(channel_img)]
 #                    data_x[k,l,0] = clip(ti % 2)
 #                    data_x[k,l,1] = clip((ti // 2) % 2)
@@ -56,5 +59,10 @@ with open('/tomas/tokens.txt') as f:
 
             img[i,:,:,:] = data_x
         np.save('images' + str(jj) + '.npy', img.astype('float32'))
+
+
+
+with open('int_to_token.p', 'wb') as fp:
+    pickle.dump(int_to_token, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
 

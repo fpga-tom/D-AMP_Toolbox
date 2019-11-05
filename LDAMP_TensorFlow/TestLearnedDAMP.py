@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 import LearnedDAMP as LDAMP
 import random
 import h5py
+import pickle
 
 
 ## Network Parameters
@@ -22,7 +23,7 @@ filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=1
+n_DAMP_layers=8
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -46,6 +47,13 @@ init_mu = 0
 init_sigma = 0.1
 
 random.seed(1)
+
+def to_int(abc):
+    r = 0
+    for i in range(channel_img-1,-1,-1):
+	r *= 2
+	r += np.round(abc[i])
+    return int(r)
 
 LDAMP.SetNetworkParams(new_height_img=height_img, new_width_img=width_img, new_channel_img=channel_img, \
                        new_filter_height=filter_height, new_filter_width=filter_width, new_num_filters=num_filters, \
@@ -179,7 +187,20 @@ with tf.Session() as sess:
     print(Final_HD)
 #    fig1 = plt.figure()
     print(x_test[0,0,:])
-    print(batch_x_recon[0,0,:])
+    print(np.sign(batch_x_recon[0,0,:]*2-1))
+
+    with open('int_to_token.p', 'rb') as fp:
+	    int_to_token = pickle.load(fp)
+#    print(int_to_token)
+
+
+    tokens = []
+    for x in range(height_img*width_img):
+#	print(to_int(x_test[0,x,:]))
+	token = int_to_token[to_int(x_test[0,x,:])]
+	tokens.append(token)
+
+    print(tokens)
     plt.imshow((np.reshape(x_test[n_Test_Images-1, :, 0:3], (height_img, width_img,3 ))), interpolation='nearest')
 #    plt.show()
     plt.savefig('orig.png')

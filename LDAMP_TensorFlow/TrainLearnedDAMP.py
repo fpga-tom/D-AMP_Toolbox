@@ -86,8 +86,8 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001, 0.00001]
 EPOCHS = 50
-n_Train_Images=2000#128*1600#128*3000
-n_Val_Images=1000#10000#Must be less than 21504
+n_Train_Images=8000#128*1600#128*3000
+n_Val_Images=400#10000#Must be less than 21504
 BATCH_SIZE = 32
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
@@ -133,7 +133,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
         theta[iter] = theta_thisIter
 
     ## Construct the measurement model and handles/placeholders
-    [A_handle, At_handle, A_val, A_val_tf] = LDAMP.GenerateMeasurementOperators(measurement_mode)
+    [A_handle, At_handle, A_val, A_val_tf, Idx] = LDAMP.GenerateMeasurementOperators(measurement_mode)
     y_measured = LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf)
 
     ## Construct the reconstruction model
@@ -369,11 +369,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     end = offset + BATCH_SIZE
 
                     # Generate a new measurement matrix
-                    A_val=LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                    A_val, idd=LDAMP.GenerateMeasurementMatrix(measurement_mode)
                     batch_x_val = x_val[rand_inds[offset:end],:]
 
                     # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val_tf:A_val, training_tf:False})
+                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val_tf:A_val, training_tf:False, Idx: idd})
                     val_values.append(loss_val)
                 time_taken = time.time() - start_time
                 print np.mean(val_values)
@@ -398,11 +398,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-#                        A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_train = x_train[rand_inds[offset:end],:]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val_tf:A_val, training_tf:True})#Feed dict names should match with the placeholders
+                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val_tf:A_val, training_tf:True, Idx: idd})#Feed dict names should match with the placeholders
                         train_values.append(loss_val)
 			pbar.update(BATCH_SIZE)
 		    pbar.close()
@@ -418,11 +418,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-                        #A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False})
+                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False, Idx: idd})
                         val_values.append(loss_val)
 		        psnr_values.append(psnr_batch[-1])
 			hd_values.append(hd_batch[-1])
