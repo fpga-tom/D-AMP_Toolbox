@@ -270,7 +270,7 @@ def GenerateMeasurementMatrix(mode):
     elif mode=='dvb':
         A_val = np.zeros([1,n, channel_img])
         rand_col_inds=np.random.permutation(range(n))
-        rand_col_inds=rand_col_inds[0:m]
+        rand_col_inds=sorted(rand_col_inds[0:m])
         row_inds = range(m)
         idd=zip(row_inds,rand_col_inds)
         #vals=tf.ones(m, dtype=tf.float32);
@@ -322,7 +322,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
 #				), axis=0)
 #	    print('dxdr_z',dxdr_z)
 	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
-            z = y - A_handle(A_val, xhat) + tf.transpose(n_fp / m_fp * dxdr_z)
+            z = y - A_handle(A_val, xhat)# + tf.transpose(n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)

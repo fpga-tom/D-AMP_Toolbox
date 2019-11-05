@@ -24,7 +24,7 @@ def clip(x):
 
 lineno = 0
 int_to_token = dict()
-with open('/tomas/tokens.txt') as f:
+with open('/src/tokens.txt') as f:
     for jj in im:
         img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
         for i in range(jj):

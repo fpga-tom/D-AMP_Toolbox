@@ -23,7 +23,7 @@ filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=8
+n_DAMP_layers=1
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -35,8 +35,8 @@ if DenoiserbyDenoiser:
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
-sampling_rate_test=.5#The sampling rate used for testing
-sampling_rate_train=.5#The sampling rate that was used for training
+sampling_rate_test=.6#The sampling rate used for testing
+sampling_rate_train=.6#The sampling rate that was used for training
 sigma_w=0.
 n=height_img*width_img
 m=int(np.round(sampling_rate_test*n))
@@ -66,7 +66,7 @@ LDAMP.ListNetworkParameters()
 x_true = tf.placeholder(tf.float32, [BATCH_SIZE, n, channel_img])
 
 #Create handles for the measurement operator
-[A_handle, At_handle, A_val, A_val_tf]=LDAMP.GenerateMeasurementOperators(measurement_mode)
+[A_handle, At_handle, A_val, A_val_tf, Idx]=LDAMP.GenerateMeasurementOperators(measurement_mode)
 
 ## Initialize the variable theta which stores the weights and biases
 if tie_weights == True:
@@ -174,12 +174,12 @@ with tf.Session() as sess:
         # batch_y_test = y_test[:, offset:end] #To be used when using precomputed measurements
 
         # Generate a new measurement matrix
-#        A_val = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
 
         batch_x_test = x_test[offset:end, :]
 
         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val_tf: A_val})
+        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val_tf: A_val, Idx: idd})
         Final_PSNRs.append(batch_PSNR_hist[-1])
 	Final_HD.append(batch_HD_history[-1])
     print(Final_PSNRs)
@@ -197,8 +197,12 @@ with tf.Session() as sess:
     tokens = []
     for x in range(height_img*width_img):
 #	print(to_int(x_test[0,x,:]))
-	token = int_to_token[to_int(x_test[0,x,:])]
-	tokens.append(token)
+	try:
+		token = int_to_token[to_int(batch_x_recon[0,x,:])]
+		tokens.append(token)
+#		print(token)
+	except Exception:
+		print('ex')
 
     print(tokens)
     plt.imshow((np.reshape(x_test[n_Test_Images-1, :, 0:3], (height_img, width_img,3 ))), interpolation='nearest')
