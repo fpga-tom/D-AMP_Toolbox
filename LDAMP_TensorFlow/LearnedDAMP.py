@@ -298,7 +298,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
             r = xhat + At_handle(A_val,z)
-            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))
+            rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
         (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=training,LayerbyLayer=LayerbyLayer)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
@@ -321,8 +321,9 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
 #				 dxdr_e * tf.transpose(z_e), \
 #				), axis=0)
 #	    print('dxdr_z',dxdr_z)
-	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
-            z = y - A_handle(A_val, xhat) + tf.transpose(n_fp / m_fp * dxdr_z)
+#	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
+	    dxdr_z = tf.transpose(dxdr * tf.transpose(z))
+            z = y - A_handle(A_val, xhat) + (n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
@@ -442,14 +443,14 @@ def init_vars_DnCNN(init_mu,init_sigma):
     with tf.variable_scope("l0"):
         # Layer 1: filter_heightxfilter_width conv, channel_img inputs, num_filters outputs
         weights[0] = tf.Variable(
-            tf.truncated_normal(shape=(filter_height, filter_width, channel_img, num_filters), mean=init_mu,
+            tf.truncated_normal(shape=(filter_height,  channel_img, num_filters), mean=init_mu,
                                 stddev=init_sigma), dtype=tf.float32, name="w")
         #biases[0] = tf.Variable(tf.zeros(num_filters), dtype=tf.float32, name="b")
     for l in range(1, n_DnCNN_layers - 1):
         with tf.variable_scope("l" + str(l)):
             # Layers 2 to Last-1: filter_heightxfilter_width conv, num_filters inputs, num_filters outputs
             weights[l] = tf.Variable(
-                tf.truncated_normal(shape=(filter_height, filter_width, num_filters, num_filters), mean=init_mu,
+                tf.truncated_normal(shape=(filter_height,  num_filters, num_filters), mean=init_mu,
                                     stddev=init_sigma), dtype=tf.float32, name="w")
             #biases[l] = tf.Variable(tf.zeros(num_filters), dtype=tf.float32, name="b")#Need to initialize this with a nz value
             #tf.layers.batch_normalization(inputs=tf.placeholder(tf.float32,[BATCH_SIZE,height_img,width_img,num_filters],name='IsThisIt'), training=tf.placeholder(tf.bool), name='BN', reuse=False)
@@ -457,7 +458,7 @@ def init_vars_DnCNN(init_mu,init_sigma):
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
         # Last Layer: filter_height x filter_width conv, num_filters inputs, 1 outputs
         weights[n_DnCNN_layers - 1] = tf.Variable(
-            tf.truncated_normal(shape=(filter_height, filter_width, num_filters, channel_img), mean=init_mu,
+            tf.truncated_normal(shape=(filter_height,  num_filters, channel_img), mean=init_mu,
                                 stddev=init_sigma), dtype=tf.float32,
             name="w")  # The intermediate convolutional layers act on num_filters_inputs, not just channel_img inputs.
         #biases[n_DnCNN_layers - 1] = tf.Variable(tf.zeros(1), dtype=tf.float32, name="b")
@@ -470,7 +471,7 @@ def EvalError(x_hat,x_true):
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
-    hd = 1-tf.reduce_sum(tf.abs(tf.sign(x_hat) - tf.sign(x_true)))/((np.abs(np.sign(1)-np.sign(-1)))*BATCH_SIZE*n*channel_img)
+    hd = 1-tf.reduce_mean(tf.abs(tf.sign(x_hat) - tf.sign(x_true))/2., axis=[1,2])#/((np.abs(np.sign(1)-np.sign(-1)))n*channel_img)
     return mse_thisiter, nmse_thisiter, psnr_thisiter,hd
 
 ## Evaluate Intermediate Error
@@ -594,7 +595,7 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     """
     xhat=DnCNN(r,rvar,theta_thislayer,training=training)
     r_abs = tf.abs(r, name=None)
-    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1]),.00001)
+    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1,2]),.00001)
     print('epsilon',epsilon)
     eta=tf.random_normal(shape=r.get_shape(),dtype=tf.float32)
     if is_complex:
@@ -616,17 +617,19 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
 #	tf.transpose(tf.multiply(tf.transpose(eta_d), epsilon_d)), \
 #	tf.transpose(tf.multiply(tf.transpose(eta_e), epsilon_e)), \
 #	), axis=2)
-	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
+	#m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
+#	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), tf.transpose(epsilon))) for eta_r in tf.unstack(eta, axis=2) ], axis=2)
+	m = tf.transpose(tf.multiply(tf.transpose(eta) , epsilon))
         print('m', m)
         r_perturbed = r + m
         print('r_perturbed', r_perturbed)
     xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
-    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1])
+    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1,2])
     print(mean_eta_dx)
     dxdrMC=tf.divide(mean_eta_dx,epsilon)
-    if not LayerbyLayer:
-        dxdrMC=tf.stop_gradient(dxdrMC)#When training long networks end-to-end propagating wrt the MC estimates caused divergence
+#    if not LayerbyLayer:
+    dxdrMC=tf.stop_gradient(dxdrMC)#When training long networks end-to-end propagating wrt the MC estimates caused divergence
     return(xhat,dxdrMC)
 
 ## Create Denoiser Model
@@ -644,14 +647,14 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     print('rt',r)
     orig_Shape = tf.shape(r)
     shape4D = [-1, height_img, width_img, channel_img]
-    r = tf.reshape(r, shape4D)  # reshaping input
+#    r = tf.reshape(r, shape4D)  # reshaping input
     layers = [None] * n_DnCNN_layers
     print('r', r)
 
     #############  First Layer ###############
     # Conv + Relu
     with tf.variable_scope("l0"):
-        conv_out = tf.nn.conv2d(r, weights[0], strides=[1, 1, 1, 1], padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
+        conv_out = tf.nn.conv1d(r, weights[0], stride=1, padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
         layers[0] = tf.nn.relu(conv_out)
 	print('layers[0]', layers[0])
 
@@ -659,14 +662,14 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     # Conv + BN + Relu
     for i in range(1,n_DnCNN_layers-1):
         with tf.variable_scope("l" + str(i)):
-            conv_out  = tf.nn.conv2d(layers[i-1], weights[i], strides=[1, 1, 1, 1], padding='SAME') #+ biases[i]
+            conv_out  = tf.nn.conv1d(layers[i-1], weights[i],stride=1,  padding='SAME') #+ biases[i]
             batch_out = tf.layers.batch_normalization(inputs=conv_out, training=training, name='BN', reuse=tf.AUTO_REUSE)
             layers[i] = tf.nn.relu(batch_out)
 
     #############  Last Layer ###############
     # Conv
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
-        layers[n_DnCNN_layers-1]  = tf.nn.conv2d(layers[n_DnCNN_layers-2], weights[n_DnCNN_layers-1], strides=[1, 1, 1, 1], padding='SAME')
+        layers[n_DnCNN_layers-1]  = tf.nn.conv1d(layers[n_DnCNN_layers-2], weights[n_DnCNN_layers-1], stride=1, padding='SAME')
 
     print('cnn', layers[n_DnCNN_layers - 1])
     x_hat = r-layers[n_DnCNN_layers-1]
