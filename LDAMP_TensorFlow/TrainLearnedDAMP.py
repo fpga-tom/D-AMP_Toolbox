@@ -78,14 +78,14 @@ max_n_DAMP_layers=20#Unless FLAGS.start_layer is set to this value or LayerbyLay
 
 ## Training Parameters
 start_layer=FLAGS.start_layer
-max_Epoch_Fails=5#How many training epochs to run without improvement in the validation error
+max_Epoch_Fails=3#How many training epochs to run without improvement in the validation error
 ResumeTraining=False#Load weights from a network you've already trained a little
 LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the network
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
-EPOCHS = 15
+EPOCHS = 50
 n_Train_Images=8000#128*1600#128*3000
 n_Val_Images=400#10000#Must be less than 21504
 BATCH_SIZE = 96
@@ -95,7 +95,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.3
+sampling_rate=.5
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
