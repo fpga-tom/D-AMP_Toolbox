@@ -22,8 +22,8 @@ channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
-n_DnCNN_layers=16
-n_DAMP_layers=5
+n_DnCNN_layers=8
+n_DAMP_layers=4
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -35,8 +35,8 @@ if DenoiserbyDenoiser:
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
-sampling_rate_test=.6#The sampling rate used for testing
-sampling_rate_train=.2#The sampling rate that was used for training
+sampling_rate_test=.5#The sampling rate used for testing
+sampling_rate_train=.3#The sampling rate that was used for training
 sigma_w=0.
 n=height_img*width_img
 m=int(np.round(sampling_rate_test*n))
@@ -200,18 +200,31 @@ with tf.Session() as sess:
     for y in range(height_img):
 	for x in range(width_img):
 #	print(to_int(x_test[0,x,:]))
+		token_idx = to_int((np.sign(batch_x_recon[0,y*width_img + x,:]) + 1)/2.)
 		try:
-			token = int_to_token[to_int((np.sign(batch_x_recon[0,y*width_img + x,:])) + 1)/2.]
+			token = int_to_token[token_idx]
 	#		print(token)
 			if (x + y * width_img) not in [b for a,b in idd]:
-				token = '#' + token + '#'
+				token = '_' + token + '_'
 				recon += 1
 #				print(x,y, (x,y) in idd)
 			else:
 				orig += 1
 			tokens.append(token)
 		except Exception:
-			tokens.append('x')
+#			hd = 64
+#			for k, v in int_to_token.items():
+#				hd1 = k ^ token_idx
+#				c = 0
+##				while hd1 != 0:
+#					c +=  hd1 % 2
+#					hd1 = hd1 // 2
+#				if c < hd:
+#					hd = c
+#					token = v
+#					
+#			print(v)
+			tokens.append('')
 
     print(idd)
     print(tokens)
