@@ -323,7 +323,7 @@ def LDAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLaye
 #	    print('dxdr_z',dxdr_z)
 #	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
 	    dxdr_z = tf.transpose(dxdr * tf.transpose(z))
-            z = y - A_handle(A_val, xhat) + (n_fp / m_fp * dxdr_z)
+            z = y - A_handle(A_val, xhat)# + (n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)

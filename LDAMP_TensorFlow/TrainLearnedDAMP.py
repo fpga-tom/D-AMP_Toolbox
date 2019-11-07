@@ -74,7 +74,7 @@ filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=FLAGS.DnCNN_layers
-max_n_DAMP_layers=10#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
+max_n_DAMP_layers=20#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
 
 ## Training Parameters
 start_layer=FLAGS.start_layer
@@ -85,7 +85,7 @@ if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
-EPOCHS = 70
+EPOCHS = 15
 n_Train_Images=8000#128*1600#128*3000
 n_Val_Images=400#10000#Must be less than 21504
 BATCH_SIZE = 96
@@ -95,7 +95,7 @@ if LayerbyLayer==False:
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.6
+sampling_rate=.2
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
