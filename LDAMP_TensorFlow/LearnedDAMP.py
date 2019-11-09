@@ -153,7 +153,7 @@ def GenerateMeasurementOperators(mode):
         vals=tf.ones(m, dtype=tf.float32);
 
         A_val_tf = tf.placeholder(tf.complex64, [1, n,channel_img])
-	Idx = tf.placeholder(tf.int64, [m, 2])
+	Idx = None #tf.placeholder(tf.int64, [m, 2])
         sparse_sampling_matrix = tf.SparseTensor(indices=Idx, values=vals, dense_shape=[m,n])
         def A_handle(A_val_tf, x):
             print(x)
@@ -171,7 +171,7 @@ def GenerateMeasurementOperators(mode):
 
 	with tf.variable_scope("matrix"):
 		A_val_tf = tf.Variable(
-		    tf.truncated_normal(shape=(n, n), mean=0,
+		    tf.truncated_normal(shape=(n * channel_img, n * channel_img), mean=0,
 					stddev=.1), dtype=tf.float32, name="A_val_tf")
 
         rand_row_inds=np.random.permutation(range(n))
@@ -179,7 +179,7 @@ def GenerateMeasurementOperators(mode):
 
 	Idx = tf.placeholder(tf.int64, [m, 2])
         y_measured = tf.placeholder(tf.float32, [m, None])
-        A_val = tf.placeholder(tf.int32, [m])  #A placeholer is used so that the large matrix isn't put into the TF graph (2GB limit)
+        A_val = tf.placeholder(tf.int32, [m*channel_img])  #A placeholer is used so that the large matrix isn't put into the TF graph (2GB limit)
 
 #	q = np.kron( spfft.idct(np.identity(10), norm='ortho', axis=0), spfft.idct(np.identity(10), norm='ortho', axis=0))
 #	print('qqq', q.shape)
@@ -187,14 +187,16 @@ def GenerateMeasurementOperators(mode):
         def A_handle(A_vals_tf, A_val, x):
             print('xxx', x)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [n, -1])), [m]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
-            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
+#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
+	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
 	    print('out', out)
 	    return out
 
         def At_handle(A_vals_tf,A_val,z):
 	    print('zzz', z)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
-            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
+#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
+	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
 	    return out
 		
     else:
@@ -291,11 +293,11 @@ def GenerateMeasurementMatrix(mode):
 #        A_val = np.float32(1. / np.sqrt(m_fp) * np.random.randn(m,n))  # values that parameterize the measurement model. This could be the measurement matrix itself or the random mask with coded diffraction patterns.
 	#A_val = spfft.idct(np.identity(n), norm='ortho', axis=0)
 	
+	w = np.reshape(np.arange(n*channel_img), [n, channel_img])
         rand_col_inds=np.random.permutation(range(n))
-        rand_col_inds=sorted(rand_col_inds[0:m])
-        row_inds = range(m)
-        idd=zip(row_inds,rand_col_inds)
-	A_val = rand_col_inds
+        rand_col_inds=w[rand_col_inds[0:m],:]
+        idd=[]
+	A_val = sorted(np.reshape(rand_col_inds, [m*channel_img]))
     else:
         raise ValueError('Measurement mode not recognized')
     return A_val, idd
@@ -343,15 +345,16 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 #				 dxdr_e * tf.transpose(z_e), \
 #				), axis=0)
 #	    print('dxdr_z',dxdr_z)
-	    dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
-	    #dxdr_z = tf.transpose(dxdr * tf.transpose(z))
+	    #dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
+	    #dxdr_z = tf.transpose(tf.multiply(z, dxdr))
             z = y - A_handle(A_val_tf, A_val, xhat)# + tf.transpose(n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
         PSNR_history.append(PSNR_thisiter)
 	HD_history.append(HD_thisiter)
-    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(xhat, axis=0)], axis=0)
+#    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(xhat, axis=0)], axis=0)
+	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf, tf.transpose(tf.reshape(xhat, [-1, n * channel_img])))), [-1, n, channel_img])
     return out, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history
 
 #Learned DAMP operating on Aty. Used for calculating MCSURE loss
@@ -491,8 +494,8 @@ def init_vars_DnCNN(init_mu,init_sigma):
 def EvalError(x_hat,x_true, A_val_tf):
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
-    mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[1,2])
-    xnorm2=tf.reduce_mean(tf.square( x_true),axis=[1,2])
+    mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[0])
+    xnorm2=tf.reduce_mean(tf.square( x_true),axis=[0])
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
@@ -620,7 +623,7 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     """
     xhat=DnCNN(r,rvar,theta_thislayer,training=training)
     r_abs = tf.abs(r, name=None)
-    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1]),.00001)
+    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[0]),.00001)
     print('epsilon',epsilon)
     eta=tf.random_normal(shape=r.get_shape(),dtype=tf.float32)
     if is_complex:
@@ -642,15 +645,15 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
 #	tf.transpose(tf.multiply(tf.transpose(eta_d), epsilon_d)), \
 #	tf.transpose(tf.multiply(tf.transpose(eta_e), epsilon_e)), \
 #	), axis=2)
-	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
+#	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
 #	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), tf.transpose(epsilon))) for eta_r in tf.unstack(eta, axis=2) ], axis=2)
-	#m = tf.transpose(tf.multiply(tf.transpose(eta) , epsilon))
+	m = (tf.multiply((eta) , epsilon))
         print('m', m)
         r_perturbed = r + m
         print('r_perturbed', r_perturbed)
     xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
-    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1])
+    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[0])
     print(mean_eta_dx)
     dxdrMC=tf.divide(mean_eta_dx,epsilon)
     if not LayerbyLayer:

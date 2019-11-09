@@ -87,9 +87,9 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=10000#128*1600#128*3000
+n_Train_Images=40000#128*1600#128*3000
 n_Val_Images=400#10000#Must be less than 21504
-BATCH_SIZE = 16
+BATCH_SIZE = 128
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
@@ -181,8 +181,6 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
         #Note: This cost is missing a ||Px||^2 term and so is expected to go negative
     else:
 	print('l2')
-#    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
-#    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
         cost = tf.nn.l2_loss(x_true - x_hat) * 1. / nfp
 
     iter = n_DAMP_layers - 1
@@ -396,7 +394,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     batch_x_val = x_val[rand_inds[offset:end],:]
 
                     # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val:A_val_, training_tf:False, Idx: idd})
+                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val:A_val_, training_tf:False})
                     val_values.append(loss_val)
                 time_taken = time.time() - start_time
                 print np.mean(val_values)
@@ -425,7 +423,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         batch_x_train = x_train[rand_inds[offset:end],:]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val:A_val_, training_tf:True, Idx: idd})#Feed dict names should match with the placeholders
+                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val:A_val_, training_tf:True})#Feed dict names should match with the placeholders
                         train_values.append(loss_val)
 			pbar.update(BATCH_SIZE)
 		    pbar.close()
@@ -445,7 +443,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val: A_val_, training_tf:False, Idx: idd})
+                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val: A_val_, training_tf:False})
                         val_values.append(loss_val)
 		        psnr_values.append(psnr_batch[-1])
 			hd_values.append(hd_batch[-1])

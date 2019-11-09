@@ -37,7 +37,7 @@ if DenoiserbyDenoiser:
 ## Testing/Problem Parameters
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
-sampling_rate_test=.5#The sampling rate used for testing
+sampling_rate_test=.8#The sampling rate used for testing
 sampling_rate_train=.8#The sampling rate that was used for training
 sigma_w=0.
 n=height_img*width_img
@@ -181,7 +181,7 @@ with tf.Session() as sess:
         batch_x_test = x_test[offset:end, :]
 
         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val: A_val_, Idx: idd})
+        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val: A_val_})
         Final_PSNRs.append(batch_PSNR_hist[-1])
 	Final_HD.append(batch_HD_history[-1])
     print(Final_PSNRs)
