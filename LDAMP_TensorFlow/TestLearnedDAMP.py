@@ -18,14 +18,14 @@ from six import iteritems
 ## Network Parameters
 alg="DAMP"
 tie_weights=False
-height_img = 45
-width_img = 45
+height_img = 25
+width_img = 1
 channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=8
-n_DAMP_layers=1
+n_DAMP_layers=2
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -38,11 +38,11 @@ if DenoiserbyDenoiser:
 BATCH_SIZE = 1#Using a batch size larger than 1 will hurt the denoiser by denoiser trained network because it will use an average noise level, rather than a noise level specific to each image
 n_Test_Images = 1
 sampling_rate_test=.5#The sampling rate used for testing
-sampling_rate_train=.5#The sampling rate that was used for training
+sampling_rate_train=.8#The sampling rate that was used for training
 sigma_w=0.
 n=height_img*width_img
 m=int(np.round(sampling_rate_test*n))
-measurement_mode='dvb'#'Fast-JL'#'coded-diffraction'#'gaussian'#'complex-gaussian'#
+measurement_mode='dvb1'#'Fast-JL'#'coded-diffraction'#'gaussian'#'complex-gaussian'#
 
 # Parameters to to initalize weights. Won't be used if old weights are loaded
 init_mu = 0
@@ -92,9 +92,9 @@ else:
         theta[iter] = theta_thisIter
 
 ## Construct model
-y_measured= LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf)
+y_measured= LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf, A_val)
 if alg == 'DAMP':
-    (x_hat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history) = LDAMP.LDAMP(y_measured, A_handle, At_handle, A_val_tf, theta, x_true, tie=tie_weights)
+    (x_hat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history) = LDAMP.LDAMP(y_measured, A_handle, At_handle, A_val_tf, A_val, theta, x_true, tie=tie_weights)
 elif alg == 'DIT':
     (x_hat, MSE_history, NMSE_history, PSNR_history) = LDAMP.LDIT(y_measured, A_handle, At_handle, A_val_tf, theta, x_true, tie=tie_weights)
 else:
@@ -106,7 +106,7 @@ if height_img>50:
 else:
     test_im_name = "./TrainingData/TestData_patch" + str(height_img) + ".npy"
 test_images = np.load(test_im_name)
-test_images=test_images[:,:,:,:]
+test_images=test_images[:,:,:]
 print(len(test_images))
 assert (len(test_images)>=n_Test_Images), "Requested too much Test data"
 
@@ -176,12 +176,12 @@ with tf.Session() as sess:
         # batch_y_test = y_test[:, offset:end] #To be used when using precomputed measurements
 
         # Generate a new measurement matrix
-        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+        A_val_, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
 
         batch_x_test = x_test[offset:end, :]
 
         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val_tf: A_val, Idx: idd})
+        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val: A_val_, Idx: idd})
         Final_PSNRs.append(batch_PSNR_hist[-1])
 	Final_HD.append(batch_HD_history[-1])
     print(Final_PSNRs)

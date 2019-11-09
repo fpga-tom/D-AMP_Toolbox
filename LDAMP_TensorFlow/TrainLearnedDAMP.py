@@ -9,6 +9,7 @@ from tensorflow.python import debug as tf_debug
 from matplotlib import pyplot as plt
 import h5py
 from tqdm import tqdm
+import scipy.fftpack as spfft
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -67,8 +68,8 @@ print(FLAGS)
 ## Network Parameters
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
-height_img = 45
-width_img = 45
+height_img = 25
+width_img = 1
 channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
@@ -86,20 +87,20 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 learning_rates = [0.001, 0.0001]#, 0.00001]
 EPOCHS = 50
-n_Train_Images=8000#128*1600#128*3000
+n_Train_Images=10000#128*1600#128*3000
 n_Val_Images=400#10000#Must be less than 21504
-BATCH_SIZE = 96
+BATCH_SIZE = 16
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
 loss_func = FLAGS.loss_func
 
 ## Problem Parameters
-sampling_rate=.5
+sampling_rate=.8
 sigma_w=0#1./255.#Noise std
 n=height_img*width_img
 m=int(np.round(sampling_rate*n))
-measurement_mode='dvb'#'gaussian'#'gaussian'#'coded-diffraction'#
+measurement_mode='dvb1'#'gaussian'#'gaussian'#'coded-diffraction'#
 
 # Parameters to to initalize weights. Won't be used if old weights are loaded
 init_mu = 0
@@ -134,11 +135,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
     ## Construct the measurement model and handles/placeholders
     [A_handle, At_handle, A_val, A_val_tf, Idx] = LDAMP.GenerateMeasurementOperators(measurement_mode)
-    y_measured = LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf)
+    y_measured = LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf, A_val)
 
     ## Construct the reconstruction model
     if alg=='DAMP':
-        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN, HD_history) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
+        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN, HD_history) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,A_val,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     elif alg=='DIT':
         (x_hat, MSE_history, NMSE_history, PSNR_history) = LDAMP.LDIT(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     else:
@@ -148,6 +149,8 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
     nfp = np.float32(height_img * width_img)
     if loss_func=='SURE':
         assert alg=='DAMP', "Only LDAMP supports training with SURE"
+	print('xhat', x_hat)
+	print('divOver', div_overN)
         cost = LDAMP.MCSURE_loss(x_hat, div_overN, r_final, tf.sqrt(rvar_final))
     elif loss_func=='GSURE':
         assert alg == 'DAMP', "Only LDAMP currently supports training with GSURE"
@@ -177,11 +180,15 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
         cost = LDAMP.MCGSURE_loss(x_hat,x_ML,P,MCdiv,sigma_w)
         #Note: This cost is missing a ||Px||^2 term and so is expected to go negative
     else:
+	print('l2')
+#    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
+#    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
         cost = tf.nn.l2_loss(x_true - x_hat) * 1. / nfp
 
     iter = n_DAMP_layers - 1
     if LayerbyLayer==True:
         vars_to_train=[]#List of only the variables in the last layer.
+        vars_to_train.extend([A_val_tf])
         for l in range(0, n_DnCNN_layers):
             #vars_to_train.extend([theta[iter][0][l], theta[iter][1][l]])
             vars_to_train.extend([theta[iter][0][l]])
@@ -202,11 +209,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
     ## Load and Preprocess Training Data
     train_images = np.load('./TrainingData/TrainingData_patch'+str(height_img)+'.npy')
-    train_images=train_images[range(n_Train_Images),:,:,:]
+    train_images=train_images[range(n_Train_Images),:,:]
     assert (len(train_images)>=n_Train_Images), "Requested too much training data"
 
     val_images = np.load('./TrainingData/ValidationData_patch'+str(height_img)+'.npy')
-    val_images=val_images[:,:,:,:]
+    val_images=val_images[:,:,:]
     assert (len(val_images)>=n_Val_Images), "Requested too much validation data"
 
 #    x_train = np.transpose(np.reshape(train_images, (-1, height_img * width_img, channel_img)))
@@ -238,6 +245,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
             if ResumeTraining or learning_rate!=learning_rates[0]:
                 ##Load previous values for the weights
                 saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,loss_func=loss_func) + ".ckpt"
+		avaltf_name = "matrix/" +"A_val_tf:0"
+                avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		saver_dict.update({"matrix/A_val_tf": avaltf})
                 for iter in range(n_layers_trained):#Create a dictionary with all the variables except those associated with the optimizer.
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"Iter" + str(iter) + "/l" + str(l) + "/w": theta[iter][0][l]})#,
@@ -265,6 +275,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                 if InitWeightsMethod == 'layer_by_layer':
                     #load the weights from an identical network that was trained layer-by-layer
                     saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer=True,loss_func=loss_func) + ".ckpt"
+		    avaltf_name = "matrix/A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for iter in range(
                             n_layers_trained):  # Create a dictionary with all the variables except those associated with the optimizer.
                         for l in range(0, n_DnCNN_layers):
@@ -289,6 +302,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #load initial weights that were trained on a denoising problem
                     saver_initvars_name_chckpt=LDAMP.GenDnCNNFilename(300./255.,500./255.)+".ckpt"
                     iter = 0
+   		    avaltf_name = "matrix/A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"l" + str(l) + "/w": theta[iter][0][l]})#, "l" + str(l) + "/b": theta[iter][1][l]})
                     for l in range(1,n_DnCNN_layers-1):#Associate variance, means, and beta
@@ -310,6 +326,10 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #Initialize wieghts using a smaller network's weights
                     saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,
                                                                         n_DAMP_layer_override=n_DAMP_layers - 1,loss_func=loss_func) + ".ckpt"
+
+		    avaltf_name = "matrix/"+ "A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		    saver_dict.update({"matrix/A_val_tf": avaltf})
 
                     #Load the first n-1 iterations weights from a previously learned network
                     for iter in range(n_DAMP_layers-1):
@@ -334,6 +354,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #Initialize the weights of layer n by using the weights from layer n-1
                     iter=n_DAMP_layers-1
                     saver_dict={}
+		    avaltf_name = "matrix/"+ "A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/w": theta[iter][0][l]})#,"Iter" + str(iter-1) + "/l" + str(l) + "/b": theta[iter][1][l]})
                     for l in range(1, n_DnCNN_layers - 1):  # Associate variance, means, and beta
@@ -369,11 +392,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     end = offset + BATCH_SIZE
 
                     # Generate a new measurement matrix
-                    A_val, idd=LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                    A_val_, idd=LDAMP.GenerateMeasurementMatrix(measurement_mode)
                     batch_x_val = x_val[rand_inds[offset:end],:]
 
                     # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val_tf:A_val, training_tf:False, Idx: idd})
+                    loss_val = sess.run(cost, feed_dict={x_true: batch_x_val, A_val:A_val_, training_tf:False, Idx: idd})
                     val_values.append(loss_val)
                 time_taken = time.time() - start_time
                 print np.mean(val_values)
@@ -398,11 +421,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-                        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                        A_val_, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_train = x_train[rand_inds[offset:end],:]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val_tf:A_val, training_tf:True, Idx: idd})#Feed dict names should match with the placeholders
+                        _, loss_val = sess.run([optimizer,cost], feed_dict={x_true: batch_x_train, A_val:A_val_, training_tf:True, Idx: idd})#Feed dict names should match with the placeholders
                         train_values.append(loss_val)
 			pbar.update(BATCH_SIZE)
 		    pbar.close()
@@ -418,11 +441,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         end = offset + BATCH_SIZE
 
                         # Generate a new measurement matrix
-                        A_val, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+                        A_val_, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
                         batch_x_val = x_val[rand_inds[offset:end], :]
 
                         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val_tf: A_val, training_tf:False, Idx: idd})
+                        loss_val, psnr_batch, hd_batch = sess.run([cost, PSNR_history, HD_history ], feed_dict={x_true: batch_x_val, A_val: A_val_, training_tf:False, Idx: idd})
                         val_values.append(loss_val)
 		        psnr_values.append(psnr_batch[-1])
 			hd_values.append(hd_batch[-1])

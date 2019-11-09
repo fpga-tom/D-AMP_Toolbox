@@ -18,11 +18,11 @@ class MyCorpus(object):
 import gensim.models
 
 sentences = MyCorpus()
-model = gensim.models.Word2Vec(sentences=sentences, size=32, workers=10)
+model = gensim.models.Word2Vec(sentences=sentences, size=64)
 
 
 print(model.wv['sizeof'])
 print(model.wv.similarity('sizeof', 'int'))
 print(model.wv.similarity('sizeof', 'main'))
-print(model.wv.most_similar('printk'))
-print(model.wv.similar_by_vector(model.wv['printk'], topn=1))
+print(model.wv.most_similar('scanf'))
+print(model.wv.similar_by_vector(model.wv['printf'], topn=1))

@@ -2,10 +2,10 @@ import numpy as np
 import xxhash
 import pickle
 
-SEQ_LEN_H = 45
-SEQ_LEN_W = 45
+SEQ_LEN_H = 25
+SEQ_LEN_W = 1
 channel_img = 32
-im = [8000, 400]
+im = [40000, 400]
 
 from gensim.test.utils import datapath
 from gensim import utils
@@ -27,7 +27,7 @@ class MyCorpus(object):
 import gensim.models
 
 sentences = MyCorpus()
-model = gensim.models.Word2Vec(sentences=sentences, size=32, workers=10, min_count=1)
+model = gensim.models.Word2Vec(sentences=sentences, size=channel_img, workers=10, min_count=1)
 model.init_sims()
 
 
@@ -49,11 +49,10 @@ lineno = 0
 int_to_token = dict()
 with open('/tomas/tokens.txt') as f:
     for jj in im:
-        img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
+        img = np.zeros([jj, SEQ_LEN_H * SEQ_LEN_W, channel_img])
         for i in range(jj):
-            data_x = np.zeros([SEQ_LEN_H, SEQ_LEN_W, channel_img])
-            for k in range(SEQ_LEN_H):
-                for l in range(0,SEQ_LEN_W,1):
+            data_x = np.zeros([SEQ_LEN_H * SEQ_LEN_W,  channel_img])
+            for k in range(SEQ_LEN_H * SEQ_LEN_W):
                     token = f.readline().strip()
 		    lineno += 1
 #		    x = xxhash.xxh32()
@@ -61,19 +60,21 @@ with open('/tomas/tokens.txt') as f:
 #		    ti = x.intdigest()
 #		    int_to_token[ti] = token
 #		    data_x[k,l,:] = [clip((ti // 2**ci) % 2) for ci in range(channel_img)]
-		    v = model.wv.word_vec(token, use_norm=True)
-		    data_x[k,l,:] = v
+		    try:
+			    v = model.wv.word_vec(token, use_norm=True)
+			    data_x[k,:] = v
+		    except Exception:
+			pass
 
-            img[i,:,:,:] = data_x
+            img[i,:,:] = data_x
         np.save('images' + str(jj) + '.npy', img.astype('float32'))
 
 with open('/tomas/test_tokens.txt') as f:
 	jj = 1
-        img = np.zeros([jj, SEQ_LEN_H, SEQ_LEN_W, channel_img])
+        img = np.zeros([jj, SEQ_LEN_H * SEQ_LEN_W, channel_img])
         for i in range(jj):
-            data_x = np.zeros([SEQ_LEN_H, SEQ_LEN_W, channel_img])
+            data_x = np.zeros([SEQ_LEN_H * SEQ_LEN_W,  channel_img])
             for k in range(SEQ_LEN_H):
-                for l in range(0,SEQ_LEN_W,1):
                     token = f.readline().strip()
 		    lineno += 1
 		    #x = xxhash.xxh32()
@@ -81,10 +82,13 @@ with open('/tomas/test_tokens.txt') as f:
 		    #ti = x.intdigest()
 		    #int_to_token[ti] = token
 		    #data_x[k,l,:] = [clip((ti // 2**ci) % 2) for ci in range(channel_img)]
-		    v = model.wv.word_vec(token, use_norm=True)
-		    data_x[k,l,:] = v
+		    try:
+			    v = model.wv.word_vec(token, use_norm=True)
+			    data_x[k,:] = v
+		    except Exception:
+			pass
 
-            img[i,:,:,:] = data_x
+            img[i,:,:] = data_x
         np.save('images' + str(jj) + '.npy', img.astype('float32'))
 
 model.save('saved_models/LDAMP/w2v.model')
