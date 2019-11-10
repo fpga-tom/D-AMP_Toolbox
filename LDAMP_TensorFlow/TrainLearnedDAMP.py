@@ -69,13 +69,13 @@ print(FLAGS)
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
 height_img = 25
-width_img = 1
+width_img = 3
 channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=FLAGS.DnCNN_layers
-max_n_DAMP_layers=20#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
+max_n_DAMP_layers=10#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
 
 ## Training Parameters
 start_layer=FLAGS.start_layer
@@ -85,10 +85,11 @@ LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the networ
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-learning_rates = [0.001, 0.0001]#, 0.00001]
+#learning_rates = [0.0005, 0.0001, 0.00001]
+learning_rates = [0.0001, 0.00001]
 EPOCHS = 50
 n_Train_Images=40000#128*1600#128*3000
-n_Val_Images=400#10000#Must be less than 21504
+n_Val_Images=4000#10000#Must be less than 21504
 BATCH_SIZE = 128
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:

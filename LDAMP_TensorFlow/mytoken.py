@@ -3,9 +3,9 @@ import xxhash
 import pickle
 
 SEQ_LEN_H = 25
-SEQ_LEN_W = 1
+SEQ_LEN_W = 3
 channel_img = 32
-im = [40000, 400]
+im = [40000, 4000]
 
 from gensim.test.utils import datapath
 from gensim import utils
@@ -74,7 +74,7 @@ with open('/tomas/test_tokens.txt') as f:
         img = np.zeros([jj, SEQ_LEN_H * SEQ_LEN_W, channel_img])
         for i in range(jj):
             data_x = np.zeros([SEQ_LEN_H * SEQ_LEN_W,  channel_img])
-            for k in range(SEQ_LEN_H):
+            for k in range(SEQ_LEN_H * SEQ_LEN_W):
                     token = f.readline().strip()
 		    lineno += 1
 		    #x = xxhash.xxh32()

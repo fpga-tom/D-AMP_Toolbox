@@ -19,13 +19,13 @@ from six import iteritems
 alg="DAMP"
 tie_weights=False
 height_img = 25
-width_img = 1
+width_img = 3
 channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
-n_DnCNN_layers=8
-n_DAMP_layers=2
+n_DnCNN_layers=16
+n_DAMP_layers=7
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -184,7 +184,8 @@ with tf.Session() as sess:
         batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val: A_val_})
         Final_PSNRs.append(batch_PSNR_hist[-1])
 	Final_HD.append(batch_HD_history[-1])
-    print(Final_PSNRs)
+    print('psnr',Final_PSNRs)
+    print("batch_psnr", batch_PSNR_hist)
     print(np.mean(Final_PSNRs))
     print(Final_HD)
 #    fig1 = plt.figure()
@@ -202,18 +203,10 @@ with tf.Session() as sess:
     new_model = gensim.models.Word2Vec.load('saved_models/LDAMP/w2v.model')
     for y in range(height_img):
 	for x in range(width_img):
-#	print(to_int(x_test[0,x,:]))
-		c = 100000
 		
 		token = new_model.wv.similar_by_vector(batch_x_recon[0,y*width_img + x,:], topn=1)
 		token = token[0][0]
-#		for k, v in iteritems(new_model.vocab):
-#			corr = np.sum(np.abs(np.array(batch_x_recon[0,y*width_img + x,:])) * np.array(v))
-#			if c < corr:
-#				c = corr
-#				token = k
-#		token = new_model.wv.vocab[np.argmax(token)]
-		if (x + y * width_img) not in [b for a,b in idd]:
+		if (x + y * width_img) not in np.array(A_val_) // channel_img:
 				token = '|' + token + '|'
 		tokens.append(token)
 			

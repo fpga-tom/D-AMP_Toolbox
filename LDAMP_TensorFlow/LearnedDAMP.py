@@ -494,8 +494,8 @@ def init_vars_DnCNN(init_mu,init_sigma):
 def EvalError(x_hat,x_true, A_val_tf):
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
-    mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[0])
-    xnorm2=tf.reduce_mean(tf.square( x_true),axis=[0])
+    mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[1,2])
+    xnorm2=tf.reduce_mean(tf.square( x_true),axis=[1,2])
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
