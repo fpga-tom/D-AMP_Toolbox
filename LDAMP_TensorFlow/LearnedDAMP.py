@@ -346,8 +346,8 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 #				), axis=0)
 #	    print('dxdr_z',dxdr_z)
 	    #dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
-	    #dxdr_z = tf.transpose(tf.multiply(z, dxdr))
-            z = y - A_handle(A_val_tf, A_val, xhat)# + tf.transpose(n_fp / m_fp * dxdr_z)
+	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
+            z = y - A_handle(A_val_tf, A_val, xhat) + (n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf)
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
@@ -623,7 +623,7 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     """
     xhat=DnCNN(r,rvar,theta_thislayer,training=training)
     r_abs = tf.abs(r, name=None)
-    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[0]),.00001)
+    epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1,2]),.00001)
     print('epsilon',epsilon)
     eta=tf.random_normal(shape=r.get_shape(),dtype=tf.float32)
     if is_complex:
@@ -647,13 +647,13 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
 #	), axis=2)
 #	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), epsilon_r)) for eta_r, epsilon_r in zip(tf.unstack(eta, axis=2), tf.unstack(epsilon, axis=1))], axis=2)
 #	m = tf.stack([tf.transpose(tf.multiply(tf.transpose(eta_r), tf.transpose(epsilon))) for eta_r in tf.unstack(eta, axis=2) ], axis=2)
-	m = (tf.multiply((eta) , epsilon))
+	m = tf.transpose(tf.multiply(tf.transpose(eta) , epsilon))
         print('m', m)
         r_perturbed = r + m
         print('r_perturbed', r_perturbed)
     xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
-    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[0])
+    mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1,2])
     print(mean_eta_dx)
     dxdrMC=tf.divide(mean_eta_dx,epsilon)
     if not LayerbyLayer:

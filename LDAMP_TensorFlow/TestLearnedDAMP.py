@@ -24,8 +24,8 @@ channel_img = 32 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
-n_DnCNN_layers=16
-n_DAMP_layers=7
+n_DnCNN_layers=20
+n_DAMP_layers=2
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)

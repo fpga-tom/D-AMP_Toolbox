@@ -85,12 +85,12 @@ LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the networ
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-#learning_rates = [0.0005, 0.0001, 0.00001]
+#learning_rates = [0.001, 0.0001]#, 0.00001]
 learning_rates = [0.0001, 0.00001]
-EPOCHS = 50
+EPOCHS = 300
 n_Train_Images=40000#128*1600#128*3000
 n_Val_Images=4000#10000#Must be less than 21504
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
