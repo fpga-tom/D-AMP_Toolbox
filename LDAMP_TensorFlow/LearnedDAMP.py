@@ -708,7 +708,10 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
 
 ## Create training data from images, with tf and function handles
 def GenerateNoisyCSData_handles(x,A_handle,sigma_w,A_params, A_val):
-    y = A_handle(A_params,A_val, x)
+    x_res = tf.reshape(x, [-1, n*channel_img])
+    x_gat = tf.gather(tf.transpose(x_res), A_val)
+    y = tf.reshape(tf.transpose(x_gat), [-1, m, channel_img])
+#    y = A_handle(A_params,A_val, x)
 #    y = AddNoise(y,sigma_w)
     return y
 
