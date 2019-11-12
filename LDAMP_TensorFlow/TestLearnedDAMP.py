@@ -49,6 +49,7 @@ init_mu = 0
 init_sigma = 0.1
 
 random.seed(1)
+np.random.seed(1)
 
 def to_int(abc):
     r = 0
@@ -165,6 +166,7 @@ with tf.Session() as sess:
         #save_name = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer) + ".ckpt"
         save_name = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,sampling_rate_override=sampling_rate_train,loss_func=TrainLoss) + ".ckpt"
         saver.restore(sess, save_name)
+	print("Data restored")
 
     print("Reconstructing Signal")
     start_time = time.time()
@@ -177,6 +179,7 @@ with tf.Session() as sess:
 
         # Generate a new measurement matrix
         A_val_, idd = LDAMP.GenerateMeasurementMatrix(measurement_mode)
+	print(offset, end)
 
         batch_x_test = x_test[offset:end, :]
 
@@ -204,11 +207,11 @@ with tf.Session() as sess:
     for y in range(height_img):
 	for x in range(width_img):
 		
-		token = new_model.wv.similar_by_vector(batch_x_recon[0,y*width_img + x,:], topn=1)
-		token = token[0][0]
+		token1 = new_model.wv.similar_by_vector(batch_x_recon[0,y*width_img + x,:], topn=1)
+		token = token1[0][0]
 		if (x + y * width_img) not in np.array(A_val_) // channel_img:
-				token = '|' + token + '|'
-		tokens.append(token)
+				token = '|' + token + '|' 
+		tokens.append(token + "/" + str(token1[0][1]))
 			
 #		token_idx = to_int((np.sign(batch_x_recon[0,y*width_img + x,:]) + 1)/2.)
 #		try:

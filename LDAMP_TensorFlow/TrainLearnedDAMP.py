@@ -87,7 +87,7 @@ if tie_weights==True:
     start_layer = max_n_DAMP_layers
 #learning_rates = [0.001, 0.0001]#, 0.00001]
 learning_rates = [0.0001, 0.00001]
-EPOCHS = 300
+EPOCHS = 200
 n_Train_Images=40000#128*1600#128*3000
 n_Val_Images=4000#10000#Must be less than 21504
 BATCH_SIZE = 256
@@ -244,10 +244,12 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
             if ResumeTraining or learning_rate!=learning_rates[0]:
                 ##Load previous values for the weights
                 saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,loss_func=loss_func) + ".ckpt"
-		avaltf_name = "matrix/" +"A_val_tf:0"
-                avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		saver_dict.update({"matrix/A_val_tf": avaltf})
+
+
                 for iter in range(n_layers_trained):#Create a dictionary with all the variables except those associated with the optimizer.
+		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		    saver_dict.update({"matrix/l" + str(iter) + "/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"Iter" + str(iter) + "/l" + str(l) + "/w": theta[iter][0][l]})#,
                                            #"Iter" + str(iter) + "/l" + str(l) + "/b": theta[iter][1][l]})
@@ -274,9 +276,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                 if InitWeightsMethod == 'layer_by_layer':
                     #load the weights from an identical network that was trained layer-by-layer
                     saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer=True,loss_func=loss_func) + ".ckpt"
-		    avaltf_name = "matrix/A_val_tf:0"
-                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		    saver_dict.update({"matrix/A_val_tf": avaltf})
+#		    avaltf_name = "matrix/A_val_tf"
+#                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+#		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for iter in range(
                             n_layers_trained):  # Create a dictionary with all the variables except those associated with the optimizer.
                         for l in range(0, n_DnCNN_layers):
@@ -301,9 +303,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #load initial weights that were trained on a denoising problem
                     saver_initvars_name_chckpt=LDAMP.GenDnCNNFilename(300./255.,500./255.)+".ckpt"
                     iter = 0
-   		    avaltf_name = "matrix/A_val_tf:0"
-                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		    saver_dict.update({"matrix/A_val_tf": avaltf})
+#   		    avaltf_name = "matrix/A_val_tf"
+#                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+#		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"l" + str(l) + "/w": theta[iter][0][l]})#, "l" + str(l) + "/b": theta[iter][1][l]})
                     for l in range(1,n_DnCNN_layers-1):#Associate variance, means, and beta
@@ -326,12 +328,12 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,
                                                                         n_DAMP_layer_override=n_DAMP_layers - 1,loss_func=loss_func) + ".ckpt"
 
-		    avaltf_name = "matrix/"+ "A_val_tf:0"
-                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		    saver_dict.update({"matrix/A_val_tf": avaltf})
 
                     #Load the first n-1 iterations weights from a previously learned network
                     for iter in range(n_DAMP_layers-1):
+		        avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
+                        avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+    		        saver_dict.update({"matrix/l" + str(iter) + "/A_val_tf": avaltf})
                         for l in range(0, n_DnCNN_layers):
                             saver_dict.update({"Iter"+str(iter)+"/l" + str(l) + "/w": theta[iter][0][l]})#, "Iter"+str(iter)+"/l" + str(l) + "/b": theta[iter][1][l]})
                         for l in range(1,n_DnCNN_layers-1):#Associate variance, means, and beta
@@ -353,9 +355,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #Initialize the weights of layer n by using the weights from layer n-1
                     iter=n_DAMP_layers-1
                     saver_dict={}
-		    avaltf_name = "matrix/"+ "A_val_tf:0"
-                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		    saver_dict.update({"matrix/A_val_tf": avaltf})
+#		    avaltf_name = "matrix/"+ "A_val_tf"
+#                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+#		    saver_dict.update({"matrix/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/w": theta[iter][0][l]})#,"Iter" + str(iter-1) + "/l" + str(l) + "/b": theta[iter][1][l]})
                     for l in range(1, n_DnCNN_layers - 1):  # Associate variance, means, and beta
