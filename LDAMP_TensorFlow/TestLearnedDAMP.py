@@ -18,14 +18,14 @@ from six import iteritems
 ## Network Parameters
 alg="DAMP"
 tie_weights=False
-height_img = 25
-width_img = 3
-channel_img = 32 # RGB -> 3, Grayscale -> 1
-filter_height = 3
-filter_width = 3
+height_img = 26
+width_img = 4
+channel_img = 40 # RGB -> 3, Grayscale -> 1
+filter_height = 5
+filter_width = 5
 num_filters = 64
 n_DnCNN_layers=20
-n_DAMP_layers=2
+n_DAMP_layers=3
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -211,7 +211,7 @@ with tf.Session() as sess:
 		token = token1[0][0]
 		if (x + y * width_img) not in np.array(A_val_) // channel_img:
 				token = '|' + token + '|' 
-		tokens.append(token + "/" + str(token1[0][1]))
+		tokens.append(token)# + "/" + str(token1[0][1]))
 			
 #		token_idx = to_int((np.sign(batch_x_recon[0,y*width_img + x,:]) + 1)/2.)
 #		try:

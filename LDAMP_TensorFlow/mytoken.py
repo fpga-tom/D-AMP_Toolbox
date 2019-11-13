@@ -2,9 +2,9 @@ import numpy as np
 import xxhash
 import pickle
 
-SEQ_LEN_H = 25
-SEQ_LEN_W = 3
-channel_img = 32
+SEQ_LEN_H = 26
+SEQ_LEN_W = 4
+channel_img = 40
 im = [40000, 4000]
 
 from gensim.test.utils import datapath

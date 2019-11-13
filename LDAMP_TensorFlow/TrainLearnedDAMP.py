@@ -68,11 +68,11 @@ print(FLAGS)
 ## Network Parameters
 alg=FLAGS.alg
 tie_weights=FLAGS.tie_weights
-height_img = 25
-width_img = 3
-channel_img = 32 # RGB -> 3, Grayscale -> 1
-filter_height = 3
-filter_width = 3
+height_img = 26
+width_img = 4
+channel_img = 40 # RGB -> 3, Grayscale -> 1
+filter_height = 5
+filter_width = 5
 num_filters = 64
 n_DnCNN_layers=FLAGS.DnCNN_layers
 max_n_DAMP_layers=10#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
