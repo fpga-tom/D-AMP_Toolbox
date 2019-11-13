@@ -90,7 +90,7 @@ learning_rates = [0.0001, 0.00001]
 EPOCHS = 200
 n_Train_Images=40000#128*1600#128*3000
 n_Val_Images=4000#10000#Must be less than 21504
-BATCH_SIZE = 256
+BATCH_SIZE = 64
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
@@ -358,6 +358,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 #		    avaltf_name = "matrix/"+ "A_val_tf"
 #                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
 #		    saver_dict.update({"matrix/A_val_tf": avaltf})
+		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
+                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+    		    saver_dict.update({"matrix/l" + str(iter-1) + "/A_val_tf": avaltf})
                     for l in range(0, n_DnCNN_layers):
                         saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/w": theta[iter][0][l]})#,"Iter" + str(iter-1) + "/l" + str(l) + "/b": theta[iter][1][l]})
                     for l in range(1, n_DnCNN_layers - 1):  # Associate variance, means, and beta
