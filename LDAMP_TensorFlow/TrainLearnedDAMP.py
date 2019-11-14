@@ -71,8 +71,8 @@ tie_weights=FLAGS.tie_weights
 height_img = 26
 width_img = 4
 channel_img = 40 # RGB -> 3, Grayscale -> 1
-filter_height = 5
-filter_width = 5
+filter_height = 3
+filter_width = 3
 num_filters = 64
 n_DnCNN_layers=FLAGS.DnCNN_layers
 max_n_DAMP_layers=10#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
@@ -85,12 +85,12 @@ LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the networ
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-#learning_rates = [0.001, 0.0001]#, 0.00001]
-learning_rates = [0.0001, 0.00001]
-EPOCHS = 200
-n_Train_Images=40000#128*1600#128*3000
-n_Val_Images=4000#10000#Must be less than 21504
-BATCH_SIZE = 64
+learning_rates = [0.001, 0.0001]#, 0.00001]
+#learning_rates = [0.0001, 0.00001]
+EPOCHS = 50
+n_Train_Images=80000#128*1600#128*3000
+n_Val_Images=8000#10000#Must be less than 21504
+BATCH_SIZE = 128
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
@@ -140,7 +140,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 
     ## Construct the reconstruction model
     if alg=='DAMP':
-        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN, HD_history) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,A_val,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
+        (x_hat, MSE_history, NMSE_history, PSNR_history, r_final, rvar_final, div_overN, HD_history, x_out) = LDAMP.LDAMP(y_measured,A_handle,At_handle,A_val_tf,A_val,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     elif alg=='DIT':
         (x_hat, MSE_history, NMSE_history, PSNR_history) = LDAMP.LDIT(y_measured,A_handle,At_handle,A_val_tf,theta,x_true,tie=tie_weights,training=training_tf,LayerbyLayer=LayerbyLayer)
     else:
@@ -182,7 +182,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
         #Note: This cost is missing a ||Px||^2 term and so is expected to go negative
     else:
 	print('l2')
-        cost = tf.nn.l2_loss(x_true - x_hat) * 1. / nfp
+#        cost = tf.nn.l2_loss(x_true - x_hat) * 1. / nfp
+	print(x_hat)
+	_x_hat = tf.nn.l2_normalize(x_hat, 2)
+	_x_true = tf.nn.l2_normalize(x_true, 2)
+	cost = tf.losses.cosine_distance(_x_true, _x_hat, axis=2)#, reduction="weighted_mean")# + tf.nn.l2_loss(x_out) * 1./nfp
 
     iter = n_DAMP_layers - 1
     if LayerbyLayer==True:

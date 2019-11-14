@@ -5,7 +5,7 @@ import pickle
 SEQ_LEN_H = 26
 SEQ_LEN_W = 4
 channel_img = 40
-im = [40000, 4000]
+im = [80000, 8000]
 
 from gensim.test.utils import datapath
 from gensim import utils

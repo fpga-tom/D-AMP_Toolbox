@@ -21,11 +21,11 @@ tie_weights=False
 height_img = 26
 width_img = 4
 channel_img = 40 # RGB -> 3, Grayscale -> 1
-filter_height = 5
-filter_width = 5
+filter_height = 3
+filter_width = 3
 num_filters = 64
-n_DnCNN_layers=20
-n_DAMP_layers=3
+n_DnCNN_layers=8
+n_DAMP_layers=1
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -95,7 +95,7 @@ else:
 ## Construct model
 y_measured= LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf, A_val)
 if alg == 'DAMP':
-    (x_hat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history) = LDAMP.LDAMP(y_measured, A_handle, At_handle, A_val_tf, A_val, theta, x_true, tie=tie_weights)
+    (x_hat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, x_out) = LDAMP.LDAMP(y_measured, A_handle, At_handle, A_val_tf, A_val, theta, x_true, tie=tie_weights)
 elif alg == 'DIT':
     (x_hat, MSE_history, NMSE_history, PSNR_history) = LDAMP.LDIT(y_measured, A_handle, At_handle, A_val_tf, theta, x_true, tie=tie_weights)
 else:

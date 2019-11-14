@@ -192,7 +192,8 @@ def GenerateMeasurementOperators(mode):
             print('xxx', x)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [n, -1])), [m]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
-	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val, axis=0), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
+	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
+	    print('hero', tf.gather(A_vals_tf, A_val))
 	    print('out', out)
 	    return out
 
@@ -200,7 +201,7 @@ def GenerateMeasurementOperators(mode):
 	    print('zzz', z)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
-	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val, axis=0), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
+	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
 	    return out
 		
     else:
@@ -320,6 +321,7 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
     NMSE_history.append(NMSE_thisiter)
     PSNR_history.append(PSNR_thisiter)
     HD_history.append(HD_thisiter)
+    print('1',A_val_tf)
     for iter in range(n_DAMP_layers):
         if is_complex:
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
@@ -352,14 +354,18 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 	    #dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
 	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
             z = y - A_handle(A_val_tf[iter], A_val, xhat) + (n_fp / m_fp * dxdr_z)
-        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf)
+        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[-1])
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
         PSNR_history.append(PSNR_thisiter)
 	HD_history.append(HD_thisiter)
 #    	out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(xhat, axis=0)], axis=0)
-	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf[-1], tf.transpose(tf.reshape(xhat, [-1, n * channel_img])))), [-1, n, channel_img])
-    return out, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history
+	print('2',A_val_tf)
+#	mat = A_val_tf[0]
+#	for i in range(1,len(A_val_tf)):
+#		mat = tf.matmul(mat, A_val_tf[i])
+	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf[-1], tf.transpose(tf.reshape((xhat), [-1, n * channel_img])))), [-1, n, channel_img])
+    return out, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, xhat
 
 #Learned DAMP operating on Aty. Used for calculating MCSURE loss
 def LDAMP_Aty(Aty,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLayer=True):
@@ -499,6 +505,7 @@ def EvalError(x_hat,x_true, A_val_tf):
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
     mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[1,2])
+#    mse = tf.losses.cosine_distance(x_true, x_hat, axis=2, reduction="weighted_mean")
     xnorm2=tf.reduce_mean(tf.square( x_true),axis=[1,2])
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
