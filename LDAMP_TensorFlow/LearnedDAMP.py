@@ -192,6 +192,7 @@ def GenerateMeasurementOperators(mode):
             print('xxx', x)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [n, -1])), [m]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
+#	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
 	    print('hero', tf.gather(A_vals_tf, A_val))
 	    print('out', out)
@@ -201,6 +202,7 @@ def GenerateMeasurementOperators(mode):
 	    print('zzz', z)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
+#	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
 	    return out
 		
@@ -365,6 +367,7 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 #	for i in range(1,len(A_val_tf)):
 #		mat = tf.matmul(mat, A_val_tf[i])
 	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf[-1], tf.transpose(tf.reshape((xhat), [-1, n * channel_img])))), [-1, n, channel_img])
+#	out = tf.nn.l2_normalize(out, 2)
     return out, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, xhat
 
 #Learned DAMP operating on Aty. Used for calculating MCSURE loss

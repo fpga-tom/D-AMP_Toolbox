@@ -88,8 +88,8 @@ if tie_weights==True:
 learning_rates = [0.001, 0.0001]#, 0.00001]
 #learning_rates = [0.0001, 0.00001]
 EPOCHS = 50
-n_Train_Images=80000#128*1600#128*3000
-n_Val_Images=8000#10000#Must be less than 21504
+n_Train_Images=160000#128*1600#128*3000
+n_Val_Images=16000#10000#Must be less than 21504
 BATCH_SIZE = 128
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
@@ -185,8 +185,8 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 #        cost = tf.nn.l2_loss(x_true - x_hat) * 1. / nfp
 	print(x_hat)
 	_x_hat = tf.nn.l2_normalize(x_hat, 2)
-	_x_true = tf.nn.l2_normalize(x_true, 2)
-	cost = tf.losses.cosine_distance(_x_true, _x_hat, axis=2)#, reduction="weighted_mean")# + tf.nn.l2_loss(x_out) * 1./nfp
+	#_x_true = tf.nn.l2_normalize(x_true, 2)
+	cost = tf.losses.cosine_distance(x_true, _x_hat, axis=2) + 0.1*tf.losses.mean_squared_error(x_true, x_hat)#tf.nn.l2_loss(x_true - x_hat) * 1./nfp
 
     iter = n_DAMP_layers - 1
     if LayerbyLayer==True:
@@ -359,9 +359,6 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #Initialize the weights of layer n by using the weights from layer n-1
                     iter=n_DAMP_layers-1
                     saver_dict={}
-#		    avaltf_name = "matrix/"+ "A_val_tf"
-#                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-#		    saver_dict.update({"matrix/A_val_tf": avaltf})
 		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
                     avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
     		    saver_dict.update({"matrix/l" + str(iter-1) + "/A_val_tf": avaltf})
