@@ -171,8 +171,9 @@ def GenerateMeasurementOperators(mode):
 
 	A_val_tf = []
 	with tf.variable_scope("matrix"):
-    		for l in range(n_DAMP_layers):
-			with tf.variable_scope('l' + str(l)):
+#    		for l in range(n_DAMP_layers):
+#			with tf.variable_scope('l' + str(l)):
+			with tf.variable_scope('l0'):
 				A_val_tf_ = tf.Variable(
 				    tf.truncated_normal(shape=(n * channel_img, n * channel_img), mean=0,
 							stddev=.1), dtype=tf.float32, name="A_val_tf")
@@ -183,7 +184,7 @@ def GenerateMeasurementOperators(mode):
 
 	Idx = tf.placeholder(tf.int64, [m, 2])
         y_measured = tf.placeholder(tf.float32, [m, None])
-        A_val = tf.placeholder(tf.int32, [m*channel_img])  #A placeholer is used so that the large matrix isn't put into the TF graph (2GB limit)
+        A_val = tf.placeholder(tf.int32, [m*channel_img,1])  #A placeholer is used so that the large matrix isn't put into the TF graph (2GB limit)
 
 #	q = np.kron( spfft.idct(np.identity(10), norm='ortho', axis=0), spfft.idct(np.identity(10), norm='ortho', axis=0))
 #	print('qqq', q.shape)
@@ -193,6 +194,7 @@ def GenerateMeasurementOperators(mode):
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [n, -1])), [m]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
 #	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
+	    A_val = tf.reshape(A_val, [m * channel_img])
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
 	    print('hero', tf.gather(A_vals_tf, A_val))
 	    print('out', out)
@@ -203,6 +205,7 @@ def GenerateMeasurementOperators(mode):
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
 #            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
 #	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
+	    A_val = tf.reshape(A_val, [m * channel_img])
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
 	    return out
 		
@@ -304,7 +307,7 @@ def GenerateMeasurementMatrix(mode):
         rand_col_inds=np.random.permutation(range(n))
         rand_col_inds=w[rand_col_inds[0:m],:]
         idd=[]
-	A_val = sorted(np.reshape(rand_col_inds, [m*channel_img]))
+	A_val = sorted(np.reshape(rand_col_inds, [m*channel_img, 1]))
     else:
         raise ValueError('Measurement mode not recognized')
     return A_val, idd
@@ -313,25 +316,27 @@ def GenerateMeasurementMatrix(mode):
 def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,LayerbyLayer=True):
     z = y
     print("y", y)
-    xhat = tf.zeros([BATCH_SIZE, n,channel_img], dtype=tf.float32)
+    xhat = tf.zeros([BATCH_SIZE, n, channel_img], dtype=tf.float32)
     MSE_history=[]#Will be a list of n_DAMP_layers+1 lists, each sublist will be of size BATCH_SIZE
     NMSE_history=[]
     PSNR_history=[]
     HD_history=[]
-    (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter)=EvalError(xhat,x_true, A_val_tf)
+    (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter)=EvalError(xhat,x_true, A_val_tf[-1])
     MSE_history.append(MSE_thisiter)
     NMSE_history.append(NMSE_thisiter)
     PSNR_history.append(PSNR_thisiter)
     HD_history.append(HD_thisiter)
+    xhat_l = []
     print('1',A_val_tf)
     for iter in range(n_DAMP_layers):
         if is_complex:
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
-            r = xhat + At_handle(A_val_tf[iter], A_val,z)
+            r = xhat + At_handle(A_val_tf[-1], A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
         (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=training,LayerbyLayer=LayerbyLayer)
+	xhat_l.append(xhat)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
         else:
@@ -355,7 +360,7 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 #	    print('dxdr_z',dxdr_z)
 	    #dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
 	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
-            z = y - A_handle(A_val_tf[iter], A_val, xhat) + (n_fp / m_fp * dxdr_z)
+            z = y - A_handle(A_val_tf[-1], A_val, xhat) + (n_fp / m_fp * dxdr_z)
         (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[-1])
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
@@ -366,9 +371,9 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 #	mat = A_val_tf[0]
 #	for i in range(1,len(A_val_tf)):
 #		mat = tf.matmul(mat, A_val_tf[i])
-	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf[-1], tf.transpose(tf.reshape((xhat), [-1, n * channel_img])))), [-1, n, channel_img])
+#	out = tf.reshape(tf.transpose(tf.matmul(A_val_tf[-1], tf.transpose(tf.reshape((xhat), [-1, channel_img * channel_img])))), [-1, n, channel_img])
 #	out = tf.nn.l2_normalize(out, 2)
-    return out, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, xhat
+    return xhat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, xhat_l[0]
 
 #Learned DAMP operating on Aty. Used for calculating MCSURE loss
 def LDAMP_Aty(Aty,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLayer=True):
@@ -507,13 +512,15 @@ def init_vars_DnCNN(init_mu,init_sigma):
 def EvalError(x_hat,x_true, A_val_tf):
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_vals_tf_r,tf.reshape(x_rr, [n, -1])), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_val_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
 #    out = tf.stack([tf.stack([tf.reshape(tf.matmul(A_val_tf,tf.reshape(x_rr, [n, -1])), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x_hat, axis=0)], axis=0)
+#    out = tf.reshape(tf.transpose(tf.matmul(A_val_tf, tf.transpose(tf.reshape((x_hat), [-1, channel_img * channel_img])))), [-1, n, channel_img])
+
     mse=tf.reduce_mean(np.square(x_hat  - x_true),axis=[1,2])
 #    mse = tf.losses.cosine_distance(x_true, x_hat, axis=2, reduction="weighted_mean")
     xnorm2=tf.reduce_mean(tf.square( x_true),axis=[1,2])
     mse_thisiter=mse
     nmse_thisiter=mse/xnorm2
     psnr_thisiter=10.*tf.log(1./mse)/tf.log(10.)
-    hd = 1-tf.reduce_mean(tf.abs(tf.sign(x_hat) - tf.sign(x_true))/2., axis=[1,2])#/((np.abs(np.sign(1)-np.sign(-1)))n*channel_img)
+    hd = 0 #1-tf.reduce_mean(tf.abs(tf.sign(x_hat) - tf.sign(x_true))/2., axis=[1,2])#/((np.abs(np.sign(1)-np.sign(-1)))n*channel_img)
     return mse_thisiter, nmse_thisiter, psnr_thisiter,hd
 
 ## Evaluate Intermediate Error
@@ -688,7 +695,7 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
 #    r=tf.transpose(r)
     print('rt',r)
     orig_Shape = tf.shape(r)
-    shape4D = [-1, height_img, width_img, channel_img]
+    shape4D = [-1,  height_img * width_img, channel_img]
 #    r = tf.reshape(r, shape4D)  # reshaping input
     layers = [None] * n_DnCNN_layers
     print('r', r)
@@ -724,8 +731,9 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
 def GenerateNoisyCSData_handles(x,A_handle,sigma_w,A_params, A_val):
     x_res = tf.reshape(x, [-1, n*channel_img])
     x_gat = tf.gather((x_res), A_val, axis=1)
-    y = tf.reshape((x_gat), [-1, m, channel_img])
-#    y = A_handle(A_params,A_val, x)
+    x_sca = tf.transpose(tf.scatter_nd(A_val, tf.transpose(tf.reshape(x_gat, [-1, m*channel_img])), [n*channel_img, BATCH_SIZE]))
+    x = tf.reshape((x_sca), [-1, n, channel_img])
+    y = A_handle(A_params[-1],A_val, x)
 #    y = AddNoise(y,sigma_w)
     return y
 

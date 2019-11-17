@@ -20,12 +20,12 @@ alg="DAMP"
 tie_weights=False
 height_img = 26
 width_img = 4
-channel_img = 40 # RGB -> 3, Grayscale -> 1
+channel_img = 20 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=3
+n_DAMP_layers=5
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -184,9 +184,8 @@ with tf.Session() as sess:
         batch_x_test = x_test[offset:end, :]
 
         # Run optimization. This will both generate compressive measurements and then recontruct from them.
-        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist , batch_HD_history= sess.run([x_hat, MSE_history, NMSE_history, PSNR_history, HD_history], feed_dict={x_true: batch_x_test, A_val: A_val_})
+        batch_x_recon, batch_MSE_hist, batch_NMSE_hist, batch_PSNR_hist  = sess.run([x_hat, MSE_history, NMSE_history, PSNR_history ], feed_dict={x_true: batch_x_test, A_val: A_val_})
         Final_PSNRs.append(batch_PSNR_hist[-1])
-	Final_HD.append(batch_HD_history[-1])
     print('psnr',Final_PSNRs)
     print("batch_psnr", batch_PSNR_hist)
     print(np.mean(Final_PSNRs))
