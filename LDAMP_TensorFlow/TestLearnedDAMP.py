@@ -25,7 +25,7 @@ filter_height = 3
 filter_width = 3
 num_filters = 64
 n_DnCNN_layers=16
-n_DAMP_layers=5
+n_DAMP_layers=2
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)

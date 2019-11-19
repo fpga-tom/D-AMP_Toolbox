@@ -86,12 +86,12 @@ if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
 #learning_rates = [0.001, 0.0001]#, 0.00001]
-#learning_rates = [0.0001, 0.00001]
-learning_rates = [0.00001]
+learning_rates = [0.0001, 0.00001]
+#learning_rates = [0.00001]
 EPOCHS = 50
 n_Train_Images=320000#128*1600#128*3000
 n_Val_Images=32000#10000#Must be less than 21504
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 InitWeightsMethod=FLAGS.init_method
 if LayerbyLayer==False:
     BATCH_SIZE = 16
@@ -187,7 +187,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 	print(x_hat)
 	_x_hat = tf.nn.l2_normalize(x_hat, 2)
 	#_x_true = tf.nn.l2_normalize(x_true, 2)
-	cost = tf.losses.cosine_distance(x_true, _x_hat, axis=2) + 0.01*tf.losses.mean_squared_error(x_true, x_hat)#tf.nn.l2_loss(x_true - x_hat) * 1./nfp
+	cost = tf.losses.cosine_distance(x_true, _x_hat, axis=2) + 0.001*tf.nn.l2_loss(x_true - x_hat) * 1./nfp #tf.losses.mean_squared_error(x_true, x_hat)#tf.nn.l2_loss(x_true - x_hat) * 1./nfp
 
     iter = n_DAMP_layers - 1
     if LayerbyLayer==True:
