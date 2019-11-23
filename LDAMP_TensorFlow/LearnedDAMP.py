@@ -171,12 +171,16 @@ def GenerateMeasurementOperators(mode):
 
 	A_val_tf = []
 	with tf.variable_scope("matrix"):
-#    		for l in range(n_DAMP_layers):
-#			with tf.variable_scope('l' + str(l)):
-			with tf.variable_scope('l0'):
+    		for l in range(n_DAMP_layers):
+			with tf.variable_scope('l' + str(l)):
+				print('trainable ' + str(l) + " " +  str(l == n_DAMP_layers - 1))
+#			with tf.variable_scope('l0'):
 				A_val_tf_ = tf.Variable(
-				    tf.truncated_normal(shape=(n * channel_img, n * channel_img), mean=0,
-							stddev=.1), dtype=tf.float32, name="A_val_tf")
+				    tf.truncated_normal(shape=(n * channel_img, n* channel_img), mean=0,
+							stddev=.1), dtype=tf.float32, name="A_val_tf", trainable=(l == n_DAMP_layers - 1))
+#				A_val_tf_adjoint = tf.Variable(
+#				    tf.truncated_normal(shape=(filter_height, channel_img, n), mean=0,
+#							stddev=.1), dtype=tf.float32, name="A_val_tf_adjoint", trainable=(l == n_DAMP_layers - 1))
 				A_val_tf.append(A_val_tf_)
 
         rand_row_inds=np.random.permutation(range(n))
@@ -190,23 +194,32 @@ def GenerateMeasurementOperators(mode):
 #	print('qqq', q.shape)
 
         def A_handle(A_vals_tf, A_val, x):
-            print('xxx', x)
-#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [n, -1])), [m]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
-#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [n, -1])), [m]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(x, axis=0)], axis=0)
-#	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
 	    A_val = tf.reshape(A_val, [m * channel_img])
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(x, [-1, n * channel_img])))), [-1, m, channel_img])
-	    print('hero', tf.gather(A_vals_tf, A_val))
+	    print(x)
+            #conv_out = tf.nn.conv1d(x, A_vals_tf, stride=1, padding='SAME') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
+            #out = tf.nn.relu(conv_out)
+	    #out = tf.layers.flatten(out)
+	    #out = tf.layers.dense(out, m*channel_img)
+	    #out = tf.reshape(out, [-1, m*channel_img])
+	    #out = tf.gather(out, A_val,axis=1)
+	    #out = tf.reshape(out, [-1, m, channel_img])
 	    print('out', out)
 	    return out
 
         def At_handle(A_vals_tf,A_val,z):
-	    print('zzz', z)
-#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf_r, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for A_vals_tf_r, x_rr in zip(tf.unstack(A_vals_tf, axis=-1), tf.unstack(x_r, axis=-1)) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
-#            out = tf.stack([tf.stack([tf.reshape(tf.matmul(tf.gather(A_vals_tf, A_val),tf.reshape(x_rr, [m, -1]),adjoint_a=True), [n]) for x_rr in tf.unstack(x_r, axis=-1) ], axis=-1) for x_r in tf.unstack(z, axis=0)], axis=0)
-#	    A_vals_tf = tf.layers.batch_normalization(A_vals_tf)
 	    A_val = tf.reshape(A_val, [m * channel_img])
 	    out = tf.reshape(tf.transpose(tf.matmul(tf.gather(A_vals_tf, A_val), tf.transpose(tf.reshape(z, [-1, m * channel_img])), adjoint_a=True)), [-1, n, channel_img])
+            #conv_out = tf.nn.conv1d(z, A_vals_tf, stride=1, padding='SAME') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
+	    #print(conv_out)
+            #out = tf.nn.relu(conv_out)
+	    #out = tf.layers.flatten(out)
+	    #out = tf.layers.dense(out, n*channel_img)
+	    #print('out2',out)
+	    #out = tf.reshape(out, [-1, n*channel_img])
+#	    #out = tf.gather(out, A_val,axis=1)
+	    #out = tf.reshape(out, [-1, n, channel_img])
+	    print('out1', out)
 	    return out
 		
     else:
@@ -321,7 +334,7 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
     NMSE_history=[]
     PSNR_history=[]
     HD_history=[]
-    (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter)=EvalError(xhat,x_true, A_val_tf[-1])
+    (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter)=EvalError(xhat,x_true, A_val_tf[0])
     MSE_history.append(MSE_thisiter)
     NMSE_history.append(NMSE_thisiter)
     PSNR_history.append(PSNR_thisiter)
@@ -333,9 +346,9 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
-            r = xhat + At_handle(A_val_tf[-1], A_val,z)
+            r = xhat + At_handle(A_val_tf[iter], A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
-        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=training,LayerbyLayer=LayerbyLayer)
+        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=((iter == n_DAMP_layers - 1) and training) ,LayerbyLayer=LayerbyLayer)
 	xhat_l.append(xhat)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
@@ -346,22 +359,9 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 	    print('n_fp', n_fp)
 	    print('m_fp', m_fp)
             print('xhat',xhat)
-#	    dxdr_r, dxdr_g, dxdr_b, dxdr_a, dxdr_l, dxdr_c, dxdr_d, dxdr_e = tf.unstack(dxdr,axis=1)
-#	    z_r, z_g, z_b, z_a, z_l, z_c, z_d, z_e = tf.unstack(z, axis=2)
-#	    dxdr_z = tf.stack(( dxdr_r * tf.transpose(z_r), \
-#				 dxdr_g * tf.transpose(z_g), \
-#				 dxdr_b * tf.transpose(z_b), \
-#				 dxdr_a * tf.transpose(z_a), \
-#				 dxdr_l * tf.transpose(z_l), \
-#				 dxdr_c * tf.transpose(z_c), \
-#				 dxdr_d * tf.transpose(z_d), \
-#				 dxdr_e * tf.transpose(z_e), \
-#				), axis=0)
-#	    print('dxdr_z',dxdr_z)
-	    #dxdr_z = tf.stack([dxdr_r * tf.transpose(z_r) for dxdr_r, z_r in zip(tf.unstack(dxdr, axis=1), tf.unstack(z, axis=2))], axis=0)
 	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
-            z = y - A_handle(A_val_tf[-1], A_val, xhat) + (n_fp / m_fp * dxdr_z)
-        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[-1])
+            z = y - A_handle(A_val_tf[iter], A_val, xhat) + (n_fp / m_fp * dxdr_z)
+        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[iter])
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
         PSNR_history.append(PSNR_thisiter)
@@ -480,7 +480,7 @@ def LDGAMP(y,A_handle,At_handle,A_val,theta,x_true,tie,training=False,LayerbyLay
         PSNR_history.append(PSNR_thisiter)
     return xhat, MSE_history, NMSE_history, PSNR_history
 
-def init_vars_DnCNN(init_mu,init_sigma):
+def init_vars_DnCNN(init_mu,init_sigma, trainable):
     #Does not init BN variables
     weights = [None] * n_DnCNN_layers
     biases = [None] * n_DnCNN_layers
@@ -488,14 +488,14 @@ def init_vars_DnCNN(init_mu,init_sigma):
         # Layer 1: filter_heightxfilter_width conv, channel_img inputs, num_filters outputs
         weights[0] = tf.Variable(
             tf.truncated_normal(shape=(filter_height,  channel_img, num_filters), mean=init_mu,
-                                stddev=init_sigma), dtype=tf.float32, name="w")
+                                stddev=init_sigma), dtype=tf.float32, name="w", trainable=trainable)
         #biases[0] = tf.Variable(tf.zeros(num_filters), dtype=tf.float32, name="b")
     for l in range(1, n_DnCNN_layers - 1):
         with tf.variable_scope("l" + str(l)):
             # Layers 2 to Last-1: filter_heightxfilter_width conv, num_filters inputs, num_filters outputs
             weights[l] = tf.Variable(
                 tf.truncated_normal(shape=(filter_height,  num_filters, num_filters), mean=init_mu,
-                                    stddev=init_sigma), dtype=tf.float32, name="w")
+                                    stddev=init_sigma), dtype=tf.float32, name="w", trainable=trainable)
             #biases[l] = tf.Variable(tf.zeros(num_filters), dtype=tf.float32, name="b")#Need to initialize this with a nz value
             #tf.layers.batch_normalization(inputs=tf.placeholder(tf.float32,[BATCH_SIZE,height_img,width_img,num_filters],name='IsThisIt'), training=tf.placeholder(tf.bool), name='BN', reuse=False)
 
@@ -504,7 +504,7 @@ def init_vars_DnCNN(init_mu,init_sigma):
         weights[n_DnCNN_layers - 1] = tf.Variable(
             tf.truncated_normal(shape=(filter_height,  num_filters, channel_img), mean=init_mu,
                                 stddev=init_sigma), dtype=tf.float32,
-            name="w")  # The intermediate convolutional layers act on num_filters_inputs, not just channel_img inputs.
+            name="w", trainable=trainable)  # The intermediate convolutional layers act on num_filters_inputs, not just channel_img inputs.
         #biases[n_DnCNN_layers - 1] = tf.Variable(tf.zeros(1), dtype=tf.float32, name="b")
     return weights, biases#, betas, moving_variances, moving_means
 
@@ -700,28 +700,49 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     layers = [None] * n_DnCNN_layers
     print('r', r)
 
+    layers_concat = list()
+    layers_concat.append(r)
+
     #############  First Layer ###############
     # Conv + Relu
     with tf.variable_scope("l0"):
+	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	r = tf.nn.relu(r)
+	r = tf.layers.conv1d(r, filters=channel_img, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
         conv_out = tf.nn.conv1d(r, weights[0], stride=1, padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
         layers[0] = tf.nn.relu(conv_out)
+	layers_concat.append(layers[0])
 	print('layers[0]', layers[0])
 
     #############  2nd to 2nd to Last Layer ###############
     # Conv + BN + Relu
     for i in range(1,n_DnCNN_layers-1):
         with tf.variable_scope("l" + str(i)):
-            conv_out  = tf.nn.conv1d(layers[i-1], weights[i],stride=1,  padding='SAME') #+ biases[i]
-            batch_out = tf.layers.batch_normalization(inputs=conv_out, training=training, name='BN', reuse=tf.AUTO_REUSE)
-            layers[i] = tf.nn.relu(batch_out)
+	    r = tf.concat(layers_concat, axis=2)
+	    r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	    r = tf.nn.relu(r)
+	    r = tf.layers.conv1d(r, filters=num_filters, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
+            batch_out = tf.layers.batch_normalization(inputs=r, training=training, name='BN', reuse=tf.AUTO_REUSE)
+            relu_out = tf.nn.relu(batch_out)
+            layers[i]  = tf.nn.conv1d(relu_out, weights[i],stride=1,  padding='SAME') #+ biases[i]
+	    layers_concat.append(layers[i])
 
     #############  Last Layer ###############
     # Conv
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
-        layers[n_DnCNN_layers-1]  = tf.nn.conv1d(layers[n_DnCNN_layers-2], weights[n_DnCNN_layers-1], stride=1, padding='SAME')
+	r = tf.concat(layers_concat, axis=2)
+	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	r = tf.nn.relu(r)
+	r = tf.layers.conv1d(r,filters=num_filters,  kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
+        layers[n_DnCNN_layers-1]  = tf.nn.conv1d(r, weights[n_DnCNN_layers-1], stride=1, padding='SAME')
+	layers_concat.append(layers[n_DnCNN_layers-1])
 
     print('cnn', layers[n_DnCNN_layers - 1])
-    x_hat = r-layers[n_DnCNN_layers-1]
+    #x_hat = r-layers[n_DnCNN_layers-1]
+    x_hat = tf.concat(layers_concat, axis=2)
+    x_hat = tf.layers.flatten(x_hat)
+    x_hat = tf.layers.dense(x_hat, n*channel_img, name='dense', reuse=tf.AUTO_REUSE)
+    x_hat = tf.reshape(x_hat, [-1, n, channel_img])
     print('xhat', x_hat)
 #    x_hat = tf.transpose(tf.reshape(x_hat,orig_Shape))
 #    x_hat = (tf.reshape(x_hat,orig_Shape))
@@ -733,7 +754,11 @@ def GenerateNoisyCSData_handles(x,A_handle,sigma_w,A_params, A_val):
     x_gat = tf.gather((x_res), A_val, axis=1)
     x_sca = tf.transpose(tf.scatter_nd(A_val, tf.transpose(tf.reshape(x_gat, [-1, m*channel_img])), [n*channel_img, BATCH_SIZE]))
     x = tf.reshape((x_sca), [-1, n, channel_img])
-    y = A_handle(A_params[-1],A_val, x)
+#    mat = A_params[0]
+#    for i in range(1,len(A_params)):
+#	mat = tf.matmul(mat, A_params[i])
+    y = A_handle(A_params[0],A_val, x)
+#    y = A_handle(A_params[-1],A_val, x)
 #    y = AddNoise(y,sigma_w)
     return y
 

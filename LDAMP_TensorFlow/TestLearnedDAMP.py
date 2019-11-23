@@ -23,9 +23,9 @@ width_img = 4
 channel_img = 20 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
-num_filters = 64
-n_DnCNN_layers=16
-n_DAMP_layers=2
+num_filters = 32
+n_DnCNN_layers=4
+n_DAMP_layers=1
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -89,7 +89,7 @@ else:
     theta = [None] * n_layers_trained
     for iter in range(n_layers_trained):
         with tf.variable_scope("Iter" + str(iter)):
-            theta_thisIter = LDAMP.init_vars_DnCNN(init_mu, init_sigma)
+            theta_thisIter = LDAMP.init_vars_DnCNN(init_mu, init_sigma, trainable=False)
         theta[iter] = theta_thisIter
 
 ## Construct model
