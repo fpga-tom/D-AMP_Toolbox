@@ -461,6 +461,19 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 			cn1_bias = [v for v in tf.global_variables() if v.name == cn1_bias_name][0]
 			saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/CN1/kernel": cn1_weights})
 			saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/CN1/bias": cn1_bias})
+
+            		gamma_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/gamma:0"
+			beta_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/beta:0"
+			var_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/moving_variance:0"
+			mean_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/moving_mean:0"
+			gamma1 = [v for v in tf.global_variables() if v.name == gamma_name1][0]
+			beta1 = [v for v in tf.global_variables() if v.name == beta_name1][0]
+			moving_variance1 = [v for v in tf.global_variables() if v.name == var_name1][0]
+			moving_mean1 = [v for v in tf.global_variables() if v.name == mean_name1][0]
+                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/gamma": gamma1})
+                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/beta": beta1})
+                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/moving_variance": moving_variance1})
+                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/moving_mean": moving_mean1})
                     for l in range(1, n_DnCNN_layers - 1):  # Associate variance, means, and beta
                         gamma_name = "Iter" + str(iter) + "/l" + str(l) + "/BN/gamma:0"
                         beta_name = "Iter" + str(iter) + "/l" + str(l) + "/BN/beta:0"
@@ -475,18 +488,6 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                         saver_dict.update({"Iter"+str(iter-1)+"/l"+ str(l) + "/BN/moving_variance": moving_variance})
                         saver_dict.update({"Iter"+str(iter-1)+"/l" + str(l) + "/BN/moving_mean": moving_mean})
 
-            		gamma_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/gamma:0"
-			beta_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/beta:0"
-			var_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/moving_variance:0"
-			mean_name1 = "Iter" + str(iter) + "/l" + str(l) + "/BN1/moving_mean:0"
-			gamma1 = [v for v in tf.global_variables() if v.name == gamma_name1][0]
-			beta1 = [v for v in tf.global_variables() if v.name == beta_name1][0]
-			moving_variance1 = [v for v in tf.global_variables() if v.name == var_name1][0]
-			moving_mean1 = [v for v in tf.global_variables() if v.name == mean_name1][0]
-                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/gamma": gamma1})
-                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/beta": beta1})
-                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/moving_variance": moving_variance1})
-                        saver_dict.update({"Iter" + str(iter-1) + "/l" + str(l) + "/BN1/moving_mean": moving_mean1})
                     saver_initvars = tf.train.Saver(saver_dict)
                     saver_initvars.restore(sess, saver_initvars_name_chckpt)
                 else:
