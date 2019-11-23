@@ -171,7 +171,7 @@ def GenerateMeasurementOperators(mode):
 
 	A_val_tf = []
 	with tf.variable_scope("matrix"):
-    		for l in range(n_DAMP_layers):
+    		for l in range(1):
 			with tf.variable_scope('l' + str(l)):
 				print('trainable ' + str(l) + " " +  str(l == n_DAMP_layers - 1))
 #			with tf.variable_scope('l0'):
@@ -346,9 +346,9 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
-            r = xhat + At_handle(A_val_tf[iter], A_val,z)
+            r = xhat + At_handle(A_val_tf[0], A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
-        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,training=((iter == n_DAMP_layers - 1) and training) ,LayerbyLayer=LayerbyLayer)
+        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,trainable=(iter == n_DAMP_layers - 1), training=training ,LayerbyLayer=LayerbyLayer)
 	xhat_l.append(xhat)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
@@ -360,8 +360,8 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 	    print('m_fp', m_fp)
             print('xhat',xhat)
 	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
-            z = y - A_handle(A_val_tf[iter], A_val, xhat) + (n_fp / m_fp * dxdr_z)
-        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[iter])
+            z = y - A_handle(A_val_tf[0], A_val, xhat) + (n_fp / m_fp * dxdr_z)
+        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[0])
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
         PSNR_history.append(PSNR_thisiter)
@@ -558,7 +558,7 @@ def g_out_phaseless(phat,pvar,y,wvar):
     return g,dg
 
 ## Denoiser wrapper that selects which weights and biases to use
-def DnCNN_outer_wrapper(r,rvar,theta,tie,iter,training=False,LayerbyLayer=True):
+def DnCNN_outer_wrapper(r,rvar,theta,tie,iter,trainable,training=False,LayerbyLayer=True):
     if tie:
         with tf.variable_scope("Iter0"):
             (xhat, dxdr) = DnCNN_wrapper(r, rvar, theta[0], training=training)
@@ -634,15 +634,15 @@ def DnCNN_outer_wrapper(r,rvar,theta,tie,iter,training=False,LayerbyLayer=True):
         dxdr = tf.reshape(dxdr, shape=[1, BATCH_SIZE])
     else:
         with tf.variable_scope("Iter" + str(iter)):
-            (xhat, dxdr) = DnCNN_wrapper(r, rvar, theta[iter], training=training,LayerbyLayer=LayerbyLayer)
+            (xhat, dxdr) = DnCNN_wrapper(r, rvar, theta[iter], trainable=trainable,training=training,LayerbyLayer=LayerbyLayer)
     return (xhat, dxdr)
 
 ## Denoiser Wrapper that computes divergence
-def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
+def DnCNN_wrapper(r,rvar,theta_thislayer,trainable,training=False,LayerbyLayer=True):
     """
     Call a black-box denoiser and compute a Monte Carlo estimate of dx/dr
     """
-    xhat=DnCNN(r,rvar,theta_thislayer,training=training)
+    xhat=DnCNN(r,rvar,theta_thislayer,trainable=trainable,training=training)
     r_abs = tf.abs(r, name=None)
     epsilon = tf.maximum(.001 * tf.reduce_max(r_abs, axis=[1,2]),.00001)
     print('epsilon',epsilon)
@@ -672,7 +672,7 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
         print('m', m)
         r_perturbed = r + m
         print('r_perturbed', r_perturbed)
-    xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,training=training)#Avoid computing gradients wrt this use of theta_thislayer
+    xhat_perturbed=DnCNN(r_perturbed,rvar,theta_thislayer,trainable=trainable,training=training)#Avoid computing gradients wrt this use of theta_thislayer
     eta_dx=tf.multiply(eta,xhat_perturbed-xhat)#Want element-wise multiplication
     mean_eta_dx=tf.reduce_mean(eta_dx,axis=[1,2])
     print(mean_eta_dx)
@@ -682,7 +682,7 @@ def DnCNN_wrapper(r,rvar,theta_thislayer,training=False,LayerbyLayer=True):
     return(xhat,dxdrMC)
 
 ## Create Denoiser Model
-def DnCNN(r,rvar, theta_thislayer,training=False):
+def DnCNN(r,rvar, theta_thislayer,trainable,training=False):
     #Reuse will always be true, thus init_vars_DnCNN must be called within the appropriate namescope before DnCNN can be used
     ##r is n x batch_size, where in this case n would be height_img*width_img*channel_img
     #rvar is unused within DnCNN. It may have been used to select which sets of weights and biases to use.
@@ -706,9 +706,9 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     #############  First Layer ###############
     # Conv + Relu
     with tf.variable_scope("l0"):
-	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE, trainable=trainable, training=training)
 	r = tf.nn.relu(r)
-	r = tf.layers.conv1d(r, filters=channel_img, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
+	r = tf.layers.conv1d(r, filters=channel_img, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=trainable, name='CN1')
         conv_out = tf.nn.conv1d(r, weights[0], stride=1, padding='SAME',data_format='NHWC') #NCHW works faster on nvidia hardware, however I only perform this type of conovlution once so performance difference will be negligible
         layers[0] = tf.nn.relu(conv_out)
 	layers_concat.append(layers[0])
@@ -719,10 +719,10 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     for i in range(1,n_DnCNN_layers-1):
         with tf.variable_scope("l" + str(i)):
 	    r = tf.concat(layers_concat, axis=2)
-	    r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	    r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE, trainable=trainable, training=training)
 	    r = tf.nn.relu(r)
-	    r = tf.layers.conv1d(r, filters=num_filters, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
-            batch_out = tf.layers.batch_normalization(inputs=r, training=training, name='BN', reuse=tf.AUTO_REUSE)
+	    r = tf.layers.conv1d(r, filters=num_filters, kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=trainable, name='CN1')
+            batch_out = tf.layers.batch_normalization(inputs=r, training=training, name='BN', reuse=tf.AUTO_REUSE, trainable=trainable)
             relu_out = tf.nn.relu(batch_out)
             layers[i]  = tf.nn.conv1d(relu_out, weights[i],stride=1,  padding='SAME') #+ biases[i]
 	    layers_concat.append(layers[i])
@@ -731,18 +731,19 @@ def DnCNN(r,rvar, theta_thislayer,training=False):
     # Conv
     with tf.variable_scope("l" + str(n_DnCNN_layers - 1)):
 	r = tf.concat(layers_concat, axis=2)
-	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE)
+	r = tf.layers.batch_normalization(inputs=r, name="BN1", reuse=tf.AUTO_REUSE, trainable=trainable, training=training)
 	r = tf.nn.relu(r)
-	r = tf.layers.conv1d(r,filters=num_filters,  kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=True, name='CN1')
+	r = tf.layers.conv1d(r,filters=num_filters,  kernel_size=1, padding='SAME', reuse=tf.AUTO_REUSE,trainable=trainable, name='CN1')
         layers[n_DnCNN_layers-1]  = tf.nn.conv1d(r, weights[n_DnCNN_layers-1], stride=1, padding='SAME')
 	layers_concat.append(layers[n_DnCNN_layers-1])
 
     print('cnn', layers[n_DnCNN_layers - 1])
-    #x_hat = r-layers[n_DnCNN_layers-1]
-    x_hat = tf.concat(layers_concat, axis=2)
-    x_hat = tf.layers.flatten(x_hat)
-    x_hat = tf.layers.dense(x_hat, n*channel_img, name='dense', reuse=tf.AUTO_REUSE)
-    x_hat = tf.reshape(x_hat, [-1, n, channel_img])
+#    x_hat = r-layers[n_DnCNN_layers-1]
+    x_hat = layers[n_DnCNN_layers-1]
+#    x_hat = tf.concat(layers_concat, axis=2)
+#    x_hat = tf.layers.flatten(x_hat)
+#    x_hat = tf.layers.dense(x_hat, n*channel_img, name='dense', reuse=tf.AUTO_REUSE)
+#    x_hat = tf.reshape(x_hat, [-1, n, channel_img])
     print('xhat', x_hat)
 #    x_hat = tf.transpose(tf.reshape(x_hat,orig_Shape))
 #    x_hat = (tf.reshape(x_hat,orig_Shape))
@@ -754,9 +755,9 @@ def GenerateNoisyCSData_handles(x,A_handle,sigma_w,A_params, A_val):
     x_gat = tf.gather((x_res), A_val, axis=1)
     x_sca = tf.transpose(tf.scatter_nd(A_val, tf.transpose(tf.reshape(x_gat, [-1, m*channel_img])), [n*channel_img, BATCH_SIZE]))
     x = tf.reshape((x_sca), [-1, n, channel_img])
-#    mat = A_params[0]
-#    for i in range(1,len(A_params)):
-#	mat = tf.matmul(mat, A_params[i])
+#    mat = A_params[-1]
+#    for i in reversed(range(0,len(A_params)-1)):
+#	mat = tf.matmul(A_params[i], mat)
     y = A_handle(A_params[0],A_val, x)
 #    y = A_handle(A_params[-1],A_val, x)
 #    y = AddNoise(y,sigma_w)
