@@ -24,8 +24,8 @@ channel_img = 20 # RGB -> 3, Grayscale -> 1
 filter_height = 3
 filter_width = 3
 num_filters = 32
-n_DnCNN_layers=4
-n_DAMP_layers=3
+n_DnCNN_layers=3
+n_DAMP_layers=5
 TrainLoss='MSE'
 
 ## Training parameters (Selects which weights to use)
@@ -93,7 +93,7 @@ else:
         theta[iter] = theta_thisIter
 
 ## Construct model
-y_measured= LDAMP.GenerateNoisyCSData_handles(x_true, A_handle, sigma_w, A_val_tf, A_val)
+y_measured= LDAMP.GenerateNoisyCSData_handles(x_true, A_handle,At_handle, sigma_w, A_val_tf, A_val)
 if alg == 'DAMP':
     (x_hat, MSE_history, NMSE_history, PSNR_history, r, rvar, dxdr, HD_history, x_out) = LDAMP.LDAMP(y_measured, A_handle, At_handle, A_val_tf, A_val, theta, x_true, tie=tie_weights)
 elif alg == 'DIT':
