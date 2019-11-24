@@ -171,13 +171,13 @@ def GenerateMeasurementOperators(mode):
 
 	A_val_tf = []
 	with tf.variable_scope("matrix"):
-    		for l in range(n_DAMP_layers):
+    		for l in range(1):
 			with tf.variable_scope('l' + str(l)):
 				print('trainable ' + str(l) + " " +  str(l == n_DAMP_layers - 1))
 #			with tf.variable_scope('l0'):
 				A_val_tf_ = tf.Variable(
 				    tf.truncated_normal(shape=(n * channel_img, n* channel_img), mean=0,
-							stddev=.1), dtype=tf.float32, name="A_val_tf", trainable=(l == n_DAMP_layers - 1))
+							stddev=.1), dtype=tf.float32, name="A_val_tf", trainable=True)#(l == n_DAMP_layers - 1))
 #				A_val_tf_adjoint = tf.Variable(
 #				    tf.truncated_normal(shape=(filter_height, channel_img, n), mean=0,
 #							stddev=.1), dtype=tf.float32, name="A_val_tf_adjoint", trainable=(l == n_DAMP_layers - 1))
@@ -346,9 +346,9 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
             r = tf.complex(xhat,tf.zeros([BATCH_SIZE, n, channel_img],dtype=tf.float32)) + At_handle(A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1,2]))#In the latest version of TF, abs can handle complex values
         else:
-            r = xhat + At_handle(A_val_tf[iter], A_val,z)
+            r = xhat + At_handle(A_val_tf[0], A_val,z)
             rvar = (1. / m_fp * tf.reduce_sum(tf.square(tf.abs(z)),axis=[1]))
-        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,trainable=(iter == n_DAMP_layers - 1), training=training ,LayerbyLayer=LayerbyLayer)
+        (xhat,dxdr)=DnCNN_outer_wrapper(r, rvar,theta,tie,iter,trainable=True, training=training ,LayerbyLayer=LayerbyLayer)
 	xhat_l.append(xhat)
         if is_complex:
             z = y - A_handle(A_val, xhat) + n_fp / m_fp * tf.complex(dxdr,0.) * z
@@ -360,8 +360,8 @@ def LDAMP(y,A_handle,At_handle,A_val_tf, A_val,theta,x_true,tie,training=False,L
 	    print('m_fp', m_fp)
             print('xhat',xhat)
 	    dxdr_z = tf.transpose(tf.multiply(tf.transpose(z), dxdr))
-            z = y - A_handle(A_val_tf[iter], A_val, xhat) + (n_fp / m_fp * dxdr_z)
-        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[iter])
+            z = y - A_handle(A_val_tf[0], A_val, xhat) + (n_fp / m_fp * dxdr_z)
+        (MSE_thisiter, NMSE_thisiter, PSNR_thisiter, HD_thisiter) = EvalError(xhat, x_true, A_val_tf[0])
         MSE_history.append(MSE_thisiter)
         NMSE_history.append(NMSE_thisiter)
         PSNR_history.append(PSNR_thisiter)
@@ -751,10 +751,10 @@ def DnCNN(r,rvar, theta_thislayer,trainable,training=False):
 
 ## Create training data from images, with tf and function handles
 def GenerateNoisyCSData_handles(x,A_handle,At_handle,sigma_w,A_params, A_val):
-    #x_res = tf.reshape(x, [-1, n*channel_img])
-    #x_gat = tf.gather((x_res), A_val, axis=1)
-    #x_sca = tf.transpose(tf.scatter_nd(A_val, tf.transpose(tf.reshape(x_gat, [-1, m*channel_img])), [n*channel_img, BATCH_SIZE]))
-    #x = tf.reshape((x_sca), [-1, n, channel_img])
+    x_res = tf.reshape(x, [-1, n*channel_img])
+    x_gat = tf.gather((x_res), A_val, axis=1)
+    x_sca = tf.transpose(tf.scatter_nd(A_val, tf.transpose(tf.reshape(x_gat, [-1, m*channel_img])), [n*channel_img, BATCH_SIZE]))
+    x = tf.reshape((x_sca), [-1, n, channel_img])
     y = A_handle(A_params[0],A_val, x)
 
 #    y = A_handle(A_params[-1],A_val, x)

@@ -75,21 +75,21 @@ filter_height = 3
 filter_width = 3
 num_filters = 32
 n_DnCNN_layers=FLAGS.DnCNN_layers
-max_n_DAMP_layers=10#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
+max_n_DAMP_layers=5#Unless FLAGS.start_layer is set to this value or LayerbyLayer=false, the code will sequentially train larger and larger networks end-to-end.
 
 ## Training Parameters
 start_layer=FLAGS.start_layer
-max_Epoch_Fails=3#How many training epochs to run without improvement in the validation error
+max_Epoch_Fails=4#How many training epochs to run without improvement in the validation error
 ResumeTraining=False#Load weights from a network you've already trained a little
 LayerbyLayer=not FLAGS.train_end_to_end #Train only the last layer of the network
 if tie_weights==True:
     LayerbyLayer=False
     start_layer = max_n_DAMP_layers
-#learning_rates = [0.001, 0.0001]#, 0.00001]
+learning_rates = [0.001, 0.0001]#, 0.00001]
 #learning_rates = [0.0001, 0.00001]
-learning_rates = [0.0001]
+#learning_rates = [0.0001]
 EPOCHS = 50
-n_Train_Images=320000#128*1600#128*3000
+n_Train_Images=640000#128*1600#128*3000
 n_Val_Images=32000#10000#Must be less than 21504
 BATCH_SIZE = 1024
 InitWeightsMethod=FLAGS.init_method
@@ -132,7 +132,7 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
     theta = [None] * n_layers_trained
     for iter in range(n_layers_trained):
         with tf.variable_scope("Iter" + str(iter)):
-            theta_thisIter = LDAMP.init_vars_DnCNN(init_mu, init_sigma,trainable=(iter == n_layers_trained - 1))
+            theta_thisIter = LDAMP.init_vars_DnCNN(init_mu, init_sigma,trainable=True)#(iter == n_layers_trained - 1))
         theta[iter] = theta_thisIter
 
     ## Construct the measurement model and handles/placeholders
@@ -277,11 +277,11 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                 ##Load previous values for the weights
                 saver_initvars_name_chckpt = LDAMP.GenLDAMPFilename(alg, tie_weights, LayerbyLayer,loss_func=loss_func) + ".ckpt"
 
+		avaltf_name = "matrix/l" +str(0) +"/A_val_tf:0"
+	        avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+		saver_dict.update({"matrix/l" + str(0) + "/A_val_tf": avaltf})
 
                 for iter in range(n_layers_trained):#Create a dictionary with all the variables except those associated with the optimizer.
-		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
-	            avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-		    saver_dict.update({"matrix/l" + str(iter) + "/A_val_tf": avaltf})
 
 		    dense_name1 = "Iter" + str(iter) + "/dense/kernel:0"
 		    dense_bias_name1 = "Iter" + str(iter) + "/dense/bias:0"
@@ -391,12 +391,12 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
 #                    saver_initvars = tf.train.Saver(saver_dict)
 #                    saver_initvars.restore(sess, saver_initvars_name_chckpt)
 #                    saver_dict={}
+		    avaltf_name = "matrix/l" +str(0) +"/A_val_tf:0"
+	            avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+    		    saver_dict.update({"matrix/l" + str(0) + "/A_val_tf": avaltf})
 
                     #Load the first n-1 iterations weights from a previously learned network
                     for iter in range(n_DAMP_layers-1):
-		        avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
-	                avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-    		        saver_dict.update({"matrix/l" + str(iter) + "/A_val_tf": avaltf})
 			dense_name1 = "Iter" + str(iter) + "/dense/kernel:0"
 			dense_bias_name1 = "Iter" + str(iter) + "/dense/bias:0"
 #			dense1 = [v for v in tf.global_variables() if v.name == dense_name1][0]
@@ -444,9 +444,9 @@ for n_DAMP_layers in range(start_layer,max_n_DAMP_layers+1,1):
                     #Initialize the weights of layer n by using the weights from layer n-1
                     iter=n_DAMP_layers-1
                     saver_dict={}
-		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
-                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
-    		    saver_dict.update({"matrix/l" + str(iter-1) + "/A_val_tf": avaltf})
+#		    avaltf_name = "matrix/l" +str(iter) +"/A_val_tf:0"
+#                    avaltf = [v for v in tf.global_variables() if v.name == avaltf_name][0]
+#    		    saver_dict.update({"matrix/l" + str(iter-1) + "/A_val_tf": avaltf})
 		    dense_name1 = "Iter" + str(iter) + "/dense/kernel:0"
 		    dense_bias_name1 = "Iter" + str(iter) + "/dense/bias:0"
 #	 	    dense1 = [v for v in tf.global_variables() if v.name == dense_name1][0]
